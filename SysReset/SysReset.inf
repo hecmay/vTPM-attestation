@@ -1,0 +1,32 @@
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = SystemReset 
+  FILE_GUID                      = 968b810c-00ea-42a5-88dc-6f8fa952c9b9
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = ShellCEntryLib 
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF
+#
+
+[Sources.X64]
+#  memcpy.c
+
+[Sources]
+  Main.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  ShellPkg/ShellPkg.dec
+
+[LibraryClasses]   
+  UefiApplicationEntryPoint
+  UefiLib
+  ShellCEntryLib
+  BaseLib
+  BaseMemoryLib
+
+[Protocols]
+
+[BuildOptions]  
+    MSFT:*_*_X64_CC_FLAGS     =/GL- 

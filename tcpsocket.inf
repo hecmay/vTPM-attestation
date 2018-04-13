@@ -1,0 +1,49 @@
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = TestSocket 
+  FILE_GUID                      = 4ea97c46-749a-4dfd-b442-747010f3ce5f
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = ShellCEntryLib 
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF
+#
+
+[Sources.X64]
+#  Memcpy.c
+
+[Sources]
+  Main.c
+  Socket.c
+  PcrValue.c
+  Mtftp.c
+  Crypto.c
+  FileIo.c
+  Random.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  sstdPkg/sstd.dec
+  ShellPkg/ShellPkg.dec
+  StdLib/StdLib.dec
+  CryptoPkg/CryptoPkg.dec
+
+[LibraryClasses]   
+  UefiApplicationEntryPoint
+  UefiLib
+  ShellCEntryLib
+  sstdLib
+  BaseLib
+  BaseMemoryLib
+  BaseCryptLib
+
+[Protocols]
+  gEfiTcp4ServiceBindingProtocolGuid
+  gEfiTcp4ProtocolGuid
+  gEfiMtftp4ServiceBindingProtocolGuid
+  gEfiMtftp4ProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiRuntimeCryptProtocolGuid            ## PRODUCES
+
+[BuildOptions]  
+    MSFT:*_*_X64_CC_FLAGS     =/GL- 
