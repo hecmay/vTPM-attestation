@@ -9,15 +9,34 @@ import re
 import ssl
 import time
 import base64
-from binascii import a2b_base64
+from binascii import a2b_base64, b2a_hex, a2b_hex
 from Crypto.Random import random
 from Crypto import Random
+from Crypto.Cipher import AES
 from Crypto.Util.asn1 import DerSequence
 from Crypto.Hash import SHA512, SHA384, SHA256, SHA, MD5
 from Crypto.Cipher import PKCS1_v1_5 as Cipher_pkcs1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as Signature_pkcs1_v1_5
 from Crypto.PublicKey import RSA
 from base64 import b64encode, b64decode
+
+class AES_ENCRYPT(object):
+    def __init__(self, session_key):
+        self.key = session_key
+        self.mode = AES.MODE_CBC
+        self.IV = 16 * '\x00'
+    def encrypt(self, text):
+        cryptor = AES.new(self.key, self.mode, self.IV)
+        length = 32
+        count = len(text)
+        add = length - (count % length)
+        text = text + ('\0' * add)
+        self.ciphertext = cryptor.encrypt(text)
+        return b2a_hex(self.ciphertext)
+    def decrypt(self, text):
+        cryptor = AES.new(self.key, self.mode, self.IV)
+        plain_text = cryptor.decrypt(a2b_hex(text))
+        return plain_text.rstrip('\0')
 
 def verify_record():
     print "[INFO] Start Credential Verification...\n"
@@ -58,7 +77,6 @@ def rsa_decryption(msg, private_key):
     random_generator = Random.new().read
     cipher = Cipher_pkcs1_v1_5.new(private_key)
     text = cipher.decrypt(base64.b64decode(msg),random_generator)
-    print text
     return text
 
 def rsa_sign(msg, pricate_key):
@@ -72,14 +90,18 @@ def rsa_sign(msg, pricate_key):
         signature = base64.b64encode(sign)
         return signature
 
+# return a 32-bit key for AES encryption
 def get_session_key(random_list):
-     assert len(random_list) == 3, "Not Enough Item for Session Key"
+    assert len(random_list) == 3, "Not Enough Item for Session Key"
+    digest = SHA256.new()
+    digest.update(str(sum(random_list)))
+    return str(digest.hexdigest()[0:32])
      
 '''
     Retrieve the public key from a X509 Certificate. 
     Since 
 '''
-def key_from_x509(cert):
+def pubkey_from_x509(cert):
     pem = open(cert).read()
     lines = pem.replace(" ",'').split()
     der = a2b_base64(''.join(lines[1:-1]))
@@ -95,13 +117,21 @@ def key_from_x509(cert):
 ''' Attempt to adopt the binarized bitmap 
     to visualize the dataset in the sqlite'''
 
-pk, pubkey = create_keys()
-plain = "123456woshixxx"
-encode = rsa_encryption(plain, pubkey)
-print encode
-print pk
-rsa_decryption(encode, pk)
-ppk = key_from_x509("mycert.pem")
 
-encode = rsa_encryption(plain, ppk)
-print encode
+if __name__ == '__main__':
+    plain = "123456woshixxx"
+    ppk = pubkey_from_x509("mycert.pem")
+    rsa_encryption(plain, ppk)
+    
+    encode = rsa_encryption(plain, ppk)
+    print encode  
+
+    print get_session_key([1,9,8])
+    print len(get_session_key([1,9,8]))
+    aes_encrypt = AES_ENCRYPT(get_session_key([1,3,6]))  
+    customer_id = "3f500ac5-020d-3ce3-a2a2-51a59ddd606e"
+    e = aes_encrypt.encrypt(customer_id)
+    d = aes_encrypt.decrypt(e)
+    print customer_id
+    print e
+    print d

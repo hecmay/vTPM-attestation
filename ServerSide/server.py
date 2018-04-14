@@ -69,20 +69,28 @@ class start_server(threading.Thread):
         web.bind(ip_port)
         web.listen(5)
         print "Server Listening..."
-        global exitFlag
-        print exitFlag
+        global exitFlag, eventFlag, pcrFlag, random_num
         
         while exitFlag == 0:
+          session_key = 0
           conn, addr = web.accept()
           print "Connection from: ", addr
           while exitFlag == 0:
             data = conn.recv(buffer_size)
             if not data:
               break
+
             print "Recv Data: ", data
-            content = msg_process(data)
-            print "Sent Data: ", content
-            conn.sendall(content.encode("utf-8"))    
+            content, encode = msg_processing(data, session_key)
+            print "Sent Original Data: ", content
+            print "Sent Encoded Data: ", encode
+
+            # create session key if handshake established
+            if len(random_num) == 3 and session_key == 0:
+                session_key = get_session_key(random_num)
+                random_num = []
+
+            conn.sendall(encode.encode("utf-8"))    
 
             # verify the client's credentials after data collection
             if eventFlag == True and pcrFlag == True:
@@ -93,6 +101,17 @@ class start_server(threading.Thread):
                 exitFlag = 1
           conn.close()
         web.close()
+
+class start_tftp(threading.Thread):
+    def __init__(self, name, reset):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.reset = reset
+    def run(self):
+        ip_port = ('',69)
+        buffer_size = 512
+        web = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #web.settimeout(CHECK_TIMEOUT)
 
 '''Example of Event Log:
      Event PCR Index: 5
@@ -153,27 +172,50 @@ def update_db(pcr, event):
     session.commit()
 
  
-def msg_processing(data):
-    if data.find("Hello") >= 0: 
-        nounce = re.search(r'(\d+)').group(0)
-        random_num.append()
-        print "[INFO] Get a nounce from the client: ", nounce, "\n"
-        return "Confirm: Auth Invitation"
-    elif data.find("Event") >= 0: 
-        filename = "event.log"
-        dump_data(data, filename)
-        eventFlag = True
-        print "[INFO] Collect Event Logs\n"
-        return "Event saved"
-    elif data.find("TPM") >= 0:
-        filename = "pcr.log"
-        dump_data(data, filename)
-        pcrFlag = True
-        print "[INFO] Collect PCR Logs\n"
-        return "PCR saved"
+def msg_processing(data, session_key):
+    global random_num
+
+    # plain text transmission berfore handshake established 
+    if data.isspace() == False and session_key == 0:
+        if data.find("Hello") >= 0: 
+            nounce = re.search(r'(\d+)', data).group(0)
+            random_num.append(int(nounce))
+            server_nounce = random_number()
+            random_num.append(server_nounce)
+            print "[INFO] Get a Nounce from the client: ", nounce, "\n"
+            value = "Confirm Auth Invitation : " + str(server_nounce) 
+            return value, value  
+        elif data.find("Master") >= 0: 
+            premaster_key = re.search(r'(\d+)', data).group(0)
+            random_num.append(int(premaster_key))
+            print "[INFO] Get Pre-Master Key from the client: ", premaster_key, "\n"
+            return "Done", "Done"
+        else:
+            return "Meaningless", "Meaningless"
+
+    # data encryption with session key after handshake
+    elif data.isspace() == False and session_key != 0:
+        aes_encrypt = AES_ENCRYPT(session_key)  
+        decode = aes_encrypt.decrypt(data)
+        if decode.find("Event") >= 0: 
+            filename = "event.log"
+            dump_data(decode, filename)
+            eventFlag = True
+            print "[INFO] Collect Event Logs\n"
+            encode = aes_encrypt.encrypt("Event Saved")
+            return "Event saved", encode
+        elif decode.find("TPM") >= 0:
+            filename = "pcr.log"
+            dump_data(decode, filename)
+            pcrFlag = True
+            print "[INFO] Collect PCR Logs\n"
+            encode = aes_encrypt.encrypt("PCR Saved")
+            return "PCR saved", encode
+    
+    # received nothing
     else:
         print "[Warning] Meaningless", data, "\n"
-        return "Nothing saved"
+        return "Nothing saved", "Nothing saved"
             
 def dump_data(data, filename):
     with open(filename, 'w') as f:
