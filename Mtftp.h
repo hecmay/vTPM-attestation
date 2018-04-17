@@ -1,5 +1,5 @@
-#ifndef __NETWORK_HEADER__
-#define __NETWORK_HEADER__
+#ifndef __MTFTP_HEADER__
+#define __MTFTP_HEADER__
 #include <Uefi.h>
 
 #define IPV4(a,b,c,d) (a | b<<8 | c << 16 | d <<24)

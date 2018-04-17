@@ -343,7 +343,7 @@ SOCKET_STATUS Close(int sk)
 
 VOID
 AsciiToUnicodeSize( CHAR8 *String, 
-                    UINT8 length, 
+                    UINT32 length, 
                     CHAR16 *UniString)
 {
     int len = length;
