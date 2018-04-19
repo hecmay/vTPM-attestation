@@ -1,6 +1,7 @@
 #include <Uefi.h>
 #include <Library/UefiLib.h>
 #include <Library/PrintLib.h>
+#include <Library/BaseLib.h>
 #include <Library/ShellCEntryLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/BaseMemoryLib.h>
@@ -29,6 +30,25 @@ extern EFI_GUID  gEfiRuntimeCryptProtocolGuid;
 CONST UINT8 Aes128CbcIvec[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
+
+//
+// Convert UINT8(unsigned char) to CHAR8(char)
+//
+VOID
+UintToCharSize( UINT8  *UintStr, 
+                UINT32 length, 
+                CHAR8  *CharStr)
+{
+    CHAR8 Convert[16];
+    int len = length;
+    while (*UintStr != '\0' && len > 0) {
+        AsciiSPrint(Convert, 1024, "%02x", 0xff & *(UintStr++));
+        AsciiStrCatS(CharStr, 1024, Convert);
+        len--;
+    }
+    *CharStr = '\0';
+    AsciiPrint("\n\n[Debug] The Converted Str: %s", CharStr);
+}
 
 //
 // Sha256 Encrytion
@@ -129,8 +149,8 @@ GenerateRsaCbcKey (
     Print(L"%02x ", AesCbcKey[Index]);
   }
  
-  Print(L"\nThe Size of AesCbcKey: %d bytes\n", sizeof(AesCbcKey));
-  Print(L"The items in AesCbcKey: %d \n", sizeof(AesCbcKey)/sizeof(AesCbcKey[0]));
+  Print(L"\n\n[Debug] The Size of AesCbcKey: %d bytes\n", sizeof(AesCbcKey));
+  Print(L"[Debug] The Last Byte in AesCbcKey: %02x \n", AesCbcKey[16]);
   // Print(L"Output Hex value: %s\n", Buffer);
   return Status;
 
@@ -141,27 +161,33 @@ EFI_STATUS
 AesCryptoData (
   IN   UINT64 Material,
   IN   CHAR8  *CryptData,
-  OUT  UINT8  *RsaBuf
+  OUT  UINT8  *RsaBuf,
+  IN   UINTN  Size
   )
 {
 
     VOID        *AesCtx;
     BOOLEAN     Result;
-    UINT8       Encrypt[256];
+    UINT8       Decrypt[256];
     UINT8       AesCbcKey[16];
     EFI_STATUS  Status;
     CHAR16      OutputBuffer[1024];
 
-    ZeroMem(Encrypt, sizeof (Encrypt));
+    ZeroMem(Decrypt, sizeof (Decrypt));
     ZeroMem(AesCbcKey, sizeof (AesCbcKey));
     AesCtx = AllocatePool (1024);
 
+    Print(L"[Debug] Sizeof AesCbcKey: %d\n", sizeof(AesCbcKey));
     Status = GenerateRsaCbcKey ( Material, AesCbcKey ); 
     if (EFI_ERROR(Status)){
       Print(L"[Fail] Get AesCbcKey Failed: %d\n", Status);
       return Status;
     }
 
+    Print(L"[Debug] After Sizeof AesCbcKey: %d\n[Debug] ", sizeof(AesCbcKey));
+    for (int Index = 0; Index < 16; Index++){
+      Print(L"%02x ", AesCbcKey[Index]);
+    }
     Result = AesInit(AesCtx, AesCbcKey, 128);
     if (!Result) {
       Print (L"[Fail] AES Init\n");
@@ -182,8 +208,13 @@ AesCryptoData (
       Print(L"The Ivec or Output not right\n");
     }
 
+    // [Debug] Dump the Data to be Encrypted
     AsciiToUnicodeSize(CryptData, 2048, OutputBuffer);
-    Print(L"[Debug] : Data encrypted by Aes: %s\n", OutputBuffer);  
+    Print(L"\n[Debug] Data encrypted by Aes: %s\n", OutputBuffer);  
+    Print(L"\n[Debug] Data encrypted by Aes in Hex\n");  
+    for (int Tag = 0; Tag < Size; Tag++) {
+      Print(L"%02x ", CryptData[Tag]);
+    }
 
     //    Status = StrnCpyS(DestKey, 1024, Buffer, 16);
     //    Print(L"AES Encryption Key: %s\n", Key);  
@@ -191,22 +222,40 @@ AesCryptoData (
     //    ZeroMem (PrintBuffer, 2048);
 
 
-    Print(L"AES Encryption CBC Mode...\n");  
+    Print(L"\n\n[Debug] AES Encryption CBC Mode...");  
     Result = AesCbcEncrypt( AesCtx, 
                             (UINT8*)CryptData, 
                             AsciiStrLen(CryptData), 
                             Aes128CbcIvec, 
                             RsaBuf ); 
     if (!Result) {
-            Print (L"[Fail] AES Cbc Encrypt \n");
-            return EFI_ABORTED;
+      Print (L"[Fail] AES Cbc Encrypt \n");
+      return EFI_ABORTED;
     }
 
-    Print(L"\nThe AES-128 CBC Encryption OutPut...\n");
-    for (int Tag = 0; Tag < (sizeof(RsaBuf) / sizeof(UINT8)); Tag++) {
+    Print(L"\n[Debug] The AES-128 CBC Encryption OutPut...\n");
+    for (int Tag = 0; Tag < Size; Tag++) {
       Print(L"%02x ", RsaBuf[Tag]);
     }
 
+    // Check the Aes Decryption
+    Print(L"\n\n[Debug] AES Decryption Check...\n");  
+    Result = AesCbcDecrypt (AesCtx, 
+                            RsaBuf, 
+                            AsciiStrLen(CryptData), 
+                            Aes128CbcIvec, 
+                            Decrypt);
+    if (!Result) {
+      Print (L"[Fail] Unable to performa Aes Decyption\n");
+      return EFI_ABORTED;
+    }
+
+    Print(L"[Debug] Data decrypted by Aes in Hex\n");  
+    for (int Tag = 0; Tag < Size; Tag++) {
+      Print(L"%02x ", Decrypt[Tag]);
+    }
     return Status;                                                        
                                                                           
 }                                                                         
+
+

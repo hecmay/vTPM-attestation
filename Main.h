@@ -14,11 +14,14 @@ EFI_STATUS ExtractPcrValue(CHAR16* Buffer);
 // Convert CHAR8 Ascii to CHAR16 Unicode
 VOID AsciiToUnicodeSize( CHAR8 *String, UINT32 length, CHAR16 *UniString);
 
+// Convert UINT8 Ascii to CHAR8 Unicode
+VOID UintToCharSize( UINT8 *UintStr, UINT32 length, CHAR8 *CharStr);
+
 // Encrypt the input Data with SHA256 Alogorithm
 EFI_STATUS Sha256CryptoData(IN CHAR8 *HashData, OUT CHAR16 *Buffer, OUT UINT8 *Record);
 
 // Encrypt the input Data with AES-128 Alogorithm CBC Mode
-EFI_STATUS AesCryptoData(IN UINT64 Material, IN CHAR8 *CryptData, OUT UINT8 *RsaBuf);
+EFI_STATUS AesCryptoData(IN UINT64 Material, IN CHAR8 *CryptData, OUT UINT8 *RsaBuf, IN UINTN Size);
 
 // Test FTP Client
 EFI_STATUS TestMtftpConnection (IN EFI_HANDLE ImageHandle);

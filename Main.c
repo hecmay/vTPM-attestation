@@ -57,9 +57,9 @@ ShellAppMain (
    CHAR16 PrintBuffer[1024]; 
    CHAR8 *RecvBuffer = (CHAR8*) malloc(1024);
 
-   Status = Connect(WebSocket, IPV4(192,168,199,229), 8000);
+   Status = Connect(WebSocket, IPV4(10,192,13,77), 8000);
    if(EFI_ERROR(Status)){
-       Print(L" Connect Failure Code: %d\n", Status);
+       Print(L"[Fail] Connect Failure Code: %d\n", Status);
        return Status;
    }
 
@@ -72,18 +72,18 @@ ShellAppMain (
    // while(1) {
    Status = Recv(WebSocket, RecvBuffer, 1024);
    if(EFI_ERROR(Status)){
-       Print(L" Recv Failure Code: %d\n", Status);
+       Print(L"[Fail] Recv Failure Code: %d\n", Status);
        return Status;
    }
    
    // Request Cerificate If Recved Auth Invitation 
    if (AsciiStrStr(RecvBuffer, "Invitation") != NULL){
-       AsciiPrint("Recved Auth Invitation\n");
+       AsciiPrint("[Info] Recved Auth Invitation\n");
 
        // Extract the Nounce from Server
        CHAR8* Pointer = AsciiStrStr(RecvBuffer, ":") + 2;
        UINTN Nounce2 = AsciiStrDecimalToUintn(Pointer);
-       Print(L"The Second Nounce from Server: %d\n", Nounce2);
+       Print(L"[Info] The Second Nounce from Server: %d\n", Nounce2);
 
        UINT8* Path = (UINT8*)"cert.pem";
        CHAR16* CertPath = (CHAR16*)L"cert.pem";
@@ -96,9 +96,9 @@ ShellAppMain (
        UINTN BlockSize = 512;
        BOOLEAN Result = FALSE;
 
-       Status = MtftpConnect(WebMtftpClient, IPV4(192,168,199,229), 0);
+       Status = MtftpConnect(WebMtftpClient, IPV4(10,192,13,77), 0);
        if(EFI_ERROR(Status)){
-           Print(L" MTFTP Connect Failure Code: %d\n", Status);
+           Print(L"[Fail] MTFTP Connect Failure Code: %d\n", Status);
            return Status;
        }
 
@@ -111,9 +111,9 @@ ShellAppMain (
        DumpData(Data, CertPath, &CertSize);
        Result = RsaGetPublicKeyFromX509((UINT8*)CertPath, CertSize, &RsaCtx); 
        if (Result) {
-           Print(L"RSA Public Key Retrieved Successfully\n");
+           Print(L"[Success] RSA Public Key Retrieved Successfully\n");
        } else {
-           Print(L"RSA PK Retrieved Failed\n");
+           Print(L"[Fail] RSA PK Retrieved Failed\n");
        }
         
        // Send Pre Master Key after authticating server identification
@@ -123,16 +123,21 @@ ShellAppMain (
 
        // Generate Session Key using Nounce[0:3]
        UINTN Nounce = (UINTN)Nounce1 + Nounce2 + (UINTN)Nounce3;
-       Print(L"The Primal Key Material: %d\n", Nounce);
+       Print(L"[Debug] The Primal Key Material: %d\n", Nounce);
 
+       // Aes-128 Encryption
        ZeroMem(Record, sizeof(Record)); 
-       AesCryptoData(Nounce, HelloMsg, Record);
+       ZeroMem(HelloMsg, sizeof(HelloMsg)); 
+       AesCryptoData(Nounce, HelloMsg, Record, sizeof(Record));
+       UintToCharSize(Record, 256, HelloMsg);
+       AsciiToUnicodeSize(HelloMsg, 1280, PrintBuffer);
+       Print(L"\n\n[Debug] Uint Record Conversion: %s", PrintBuffer);
        Status = Send(WebSocket, HelloMsg, AsciiStrLen(HelloMsg)+3);
 
        // Print Data and Store the cert to file
        Status = Read(WebMtftpClient, Path, MtftpBuf, 4096);
        AsciiToUnicodeSize(MtftpBuf, 1280, PrintBuffer);
-       Print(L"The Recved MTFTP Msg: %s\n", PrintBuffer);
+       Print(L"[Debug] The Recved MTFTP Msg: %s\n", PrintBuffer);
        UINTN MsgSize = StrLen(PrintBuffer) * 2;
        Status = DumpData(PrintBuffer, (CHAR16*)L"TheRecvedMsg.log", &MsgSize);
 

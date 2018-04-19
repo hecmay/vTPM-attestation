@@ -27,7 +27,7 @@ class AES_ENCRYPT(object):
         self.IV = 16 * '\x00'
     def encrypt(self, text):
         cryptor = AES.new(self.key, self.mode, self.IV)
-        length = 32
+        length = 16
         count = len(text)
         add = length - (count % length)
         text = text + ('\0' * add)
@@ -90,16 +90,16 @@ def rsa_sign(msg, pricate_key):
         signature = base64.b64encode(sign)
         return signature
 
-# return a 32-bit key for AES encryption
+# return a 16-bytes key for AES-128 encryption
 def get_session_key(random_list):
     assert len(random_list) == 3, "Not Enough Item for Session Key"
     digest = SHA256.new()
     digest.update(str(sum(random_list)))
-    return str(digest.hexdigest()[0:32])
+    return a2b_hex(str(digest.hexdigest()[0:32]))
      
 '''
     Retrieve the public key from a X509 Certificate. 
-    Since 
+    X509 is an Certificate Format defined by ANSI 
 '''
 def pubkey_from_x509(cert):
     pem = open(cert).read()
@@ -124,14 +124,25 @@ if __name__ == '__main__':
     rsa_encryption(plain, ppk)
     
     encode = rsa_encryption(plain, ppk)
-    print encode  
+    print encode, '\n' 
 
-    print get_session_key([1,9,8])
-    print len(get_session_key([1,9,8]))
-    aes_encrypt = AES_ENCRYPT(get_session_key([1,3,6]))  
-    customer_id = "3f500ac5-020d-3ce3-a2a2-51a59ddd606e"
-    e = aes_encrypt.encrypt(customer_id)
+    digest = SHA256.new()
+    digest.update(str(368137416))
+    print "Raw Session key: ", str(digest.hexdigest())
+
+    hex_str = get_session_key([0,0,368137416])
+    aes_encrypt = AES_ENCRYPT(get_session_key([0,0,368137416]))  
+    print "The session key[d]: %s", len(hex_str), hex_str
+    # print "Convert Str to Hex", hex(int(get_session_key([0,0,368137416]), 16))
+    # print "Convert HEx Str to binary: ", bin(int(hex_str, 16))[2:]
+    # print "Convert HEx Str to binary: ", a2b_hex(hex_str)
+    # print "The orginal hex_str len: ", len(hex_str), "After: ", len(a2b_hex(hex_str))
+
+    text = "Pre Master: -647657897=========="
+    e = aes_encrypt.encrypt(text)
     d = aes_encrypt.decrypt(e)
-    print customer_id
+    print text
     print e
     print d
+
+    
