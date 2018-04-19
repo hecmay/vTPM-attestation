@@ -12,10 +12,20 @@
 
 EFI_STATUS
 EFIAPI
+MsgandRetrieveCert(
+  IN INT32 SocketId 
+)
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+  return Status;
+}
+
+EFI_STATUS
+EFIAPI
 ShellAppMain (
-          IN UINTN    Argc,
-          IN CHAR16   **Argv
-          )
+  IN UINTN    Argc,
+  IN CHAR16   **Argv
+  )
 { 
    EFI_STATUS Status;
    // Test Char data extraction 
@@ -57,7 +67,7 @@ ShellAppMain (
    CHAR16 PrintBuffer[1024]; 
    CHAR8 *RecvBuffer = (CHAR8*) malloc(1024);
 
-   Status = Connect(WebSocket, IPV4(10,192,13,77), 8000);
+   Status = Connect(WebSocket, IPV4(192,168,199,228), 8000);
    if(EFI_ERROR(Status)){
        Print(L"[Fail] Connect Failure Code: %d\n", Status);
        return Status;
@@ -66,7 +76,7 @@ ShellAppMain (
    // Send Hello Msg and Nouce to Server
    Status = GetRandom(&Nounce1);
    AsciiSPrint(HelloMsg, sizeof(HelloMsg), "HelloMsg: %d", Nounce1); 
-   Status = Send(WebSocket, HelloMsg, AsciiStrLen(HelloMsg)+3);
+   Status = Send(WebSocket, HelloMsg, sizeof(HelloMsg)+3);
 
    // Staring the while loop 
    // while(1) {
@@ -96,7 +106,7 @@ ShellAppMain (
        UINTN BlockSize = 512;
        BOOLEAN Result = FALSE;
 
-       Status = MtftpConnect(WebMtftpClient, IPV4(10,192,13,77), 0);
+       Status = MtftpConnect(WebMtftpClient, IPV4(192,168,199,228), 0);
        if(EFI_ERROR(Status)){
            Print(L"[Fail] MTFTP Connect Failure Code: %d\n", Status);
            return Status;
@@ -119,7 +129,7 @@ ShellAppMain (
        // Send Pre Master Key after authticating server identification
        Status = GetRandom(&Nounce3);
        AsciiSPrint(HelloMsg, sizeof(HelloMsg), "Pre Master: %d", Nounce3); 
-       Status = Send(WebSocket, HelloMsg, AsciiStrLen(HelloMsg)+3);
+       Status = Send(WebSocket, HelloMsg, sizeof(HelloMsg)+3);
 
        // Generate Session Key using Nounce[0:3]
        UINTN Nounce = (UINTN)Nounce1 + Nounce2 + (UINTN)Nounce3;
@@ -130,9 +140,7 @@ ShellAppMain (
        ZeroMem(HelloMsg, sizeof(HelloMsg)); 
        AesCryptoData(Nounce, HelloMsg, Record, sizeof(Record));
        UintToCharSize(Record, 256, HelloMsg);
-       AsciiToUnicodeSize(HelloMsg, 1280, PrintBuffer);
-       Print(L"\n\n[Debug] Uint Record Conversion: %s", PrintBuffer);
-       Status = Send(WebSocket, HelloMsg, AsciiStrLen(HelloMsg)+3);
+       Status = Send(WebSocket, HelloMsg, sizeof(HelloMsg)+2);
 
        // Print Data and Store the cert to file
        Status = Read(WebMtftpClient, Path, MtftpBuf, 4096);
@@ -149,6 +157,7 @@ ShellAppMain (
    }
 
 
+   ZeroMem(RecvBuffer, sizeof(RecvBuffer)); 
    AsciiToUnicodeSize(RecvBuffer, 128, PrintBuffer);
    Print(L"The Recved Msg: %s\n", PrintBuffer);
 

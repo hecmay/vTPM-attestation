@@ -10,7 +10,7 @@ typedef EFI_STATUS SOCKET_STATUS;
 
 int Socket();
 SOCKET_STATUS Connect(int fd, UINT32 Ip32, UINT16 Port);
-SOCKET_STATUS Send(int fd, CHAR8* Data, UINTN Lenth);
+SOCKET_STATUS Send(int fd, VOID* Data, UINTN Lenth);
 SOCKET_STATUS Recv(int fd, CHAR8* Buffer, UINTN Lenth);
 SOCKET_STATUS Close(int fd);
 

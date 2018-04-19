@@ -178,7 +178,7 @@ static SOCKET_STATUS Config(int sk, UINT32 Ip32, UINT16 Port)
 }
 
 //SOCKET_STAUS Socket::Send(CHAR8* Data, UINTN Lenth)
-SOCKET_STATUS Send(int sk, CHAR8* Data, UINTN Lenth)
+SOCKET_STATUS Send(int sk, VOID* Data, UINTN Lenth)
 {
     EFI_STATUS Status = EFI_NOT_FOUND;
     struct Socket* this = Socketfd[sk]; 
@@ -236,7 +236,7 @@ SOCKET_STATUS Recv(int sk, CHAR8* Buffer, UINTN Lenth)
     Status = gBS->CreateEvent(EVT_TIMER, TPL_CALLBACK, 
              (EFI_EVENT_NOTIFY)NULL, 
              (VOID*)NULL, &myEvent);
-    Status = gBS->SetTimer(myEvent, TimerPeriodic, 60*1000*1000);
+    Status = gBS->SetTimer(myEvent, TimerPeriodic, 20*1000*1000);
     Status = gBS->WaitForEvent(1, &myEvent, &index);
     Print(L"Wait Status: %d\n", Status);
     Status = this->RecvToken.CompletionToken.Status;
