@@ -128,7 +128,9 @@ DumpData (
    return EFI_ABORTED;
 }
 
-
+//
+// Read Local file Content and Dump to Memeory
+//
 EFI_STATUS ReadFileToMem (
                       IN OUT CHAR16* Buffer,
                       IN UINTN* BufferSize,

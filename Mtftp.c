@@ -137,9 +137,9 @@ static EFI_STATUS MtftpConfig(int sk, UINT32 Ip32, UINT16 Port)
     Print(L"To Cinfig the Data...12\n");
     // StationIp & SubnetMask & GatewayIp need to be set if FALSE
     this->m_pMtftp4ConfigData->UseDefaultSetting = FALSE;
-    *(UINT32*)(this->m_pMtftp4ConfigData->StationIp.Addr) = (192 | 168 << 8 | 199 << 16 | 100 << 24);
-    *(UINT32*)(this->m_pMtftp4ConfigData->SubnetMask.Addr) = (255 | 255 << 8 | 255 << 16 | 0 << 24);
-    *(UINT32*)(this->m_pMtftp4ConfigData->GatewayIp.Addr) = (192 | 168 << 8 | 199 << 16 | 1 << 24);
+    *(UINT32*)(this->m_pMtftp4ConfigData->StationIp.Addr) = (10 | 192 << 8 | 13 << 16 | 83 << 24);
+    *(UINT32*)(this->m_pMtftp4ConfigData->SubnetMask.Addr) = (255 | 255 << 8 | 255 << 16 | 128 << 24);
+    *(UINT32*)(this->m_pMtftp4ConfigData->GatewayIp.Addr) = (10 | 192 << 8 | 13 << 16 | 1 << 24);
 
     this->m_pMtftp4ConfigData->LocalPort = (UINT16)0;
 

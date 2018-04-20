@@ -259,3 +259,15 @@ AesCryptoData (
 }                                                                         
 
 
+EFI_STATUS
+AesDecryptoData (
+  IN   UINTN   Nounce,
+  IN   CHAR8   *RecvBuffer,
+  OUT  UINT8   *DecryptData
+  )
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  return Status;
+}
+

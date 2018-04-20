@@ -23,6 +23,9 @@ EFI_STATUS Sha256CryptoData(IN CHAR8 *HashData, OUT CHAR16 *Buffer, OUT UINT8 *R
 // Encrypt the input Data with AES-128 Alogorithm CBC Mode
 EFI_STATUS AesCryptoData(IN UINT64 Material, IN CHAR8 *CryptData, OUT UINT8 *RsaBuf, IN UINTN Size);
 
+// Decrypt the input Data with AES-128 Alogorithm CBC Mode
+EFI_STATUS AesDecryptoData(IN UINT64 Nounce, IN CHAR8 *RecvBuffer, OUT UINT8 *DecrptData);
+
 // Test FTP Client
 EFI_STATUS TestMtftpConnection (IN EFI_HANDLE ImageHandle);
  
