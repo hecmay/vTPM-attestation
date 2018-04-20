@@ -25,7 +25,7 @@
 #
 
 [Sources]
-  SHA256.c
+  Sha256.c
 
 [Packages]
   StdLib/StdLib.dec   

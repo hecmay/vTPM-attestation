@@ -9,13 +9,27 @@
 #include <sstd.h>
 #include "Mtftp.h"
 
+//
 // Frame for the progression slider
+//
 STATIC CONST CHAR16 mTftpProgressFrame[] = L"[                                        ]";
 
+//
 // Number of steps in the progression slider
+//
 #define TFTP_PROGRESS_SLIDER_STEPS  ((sizeof (mTftpProgressFrame) / sizeof (CHAR16)) - 3)
 
+//
+// Msg Size in progression slider
+//
 #define TFTP_PROGRESS_MESSAGE_SIZE  ((sizeof (mTftpProgressFrame) / sizeof (CHAR16)) + 12)
+
+//
+// Manual Configuration for Mtftp Client
+//
+CONST UINT32 ClientAddr  = IPV4(192,168,199,100);
+CONST UINT32 SubMask     = IPV4(255,255,255,0);
+CONST UINT32 GateWayAddr = IPV4(192,168,199,1);
 
 typedef struct {
   UINTN  FileSize;
@@ -137,9 +151,9 @@ static EFI_STATUS MtftpConfig(int sk, UINT32 Ip32, UINT16 Port)
     Print(L"To Cinfig the Data...12\n");
     // StationIp & SubnetMask & GatewayIp need to be set if FALSE
     this->m_pMtftp4ConfigData->UseDefaultSetting = FALSE;
-    *(UINT32*)(this->m_pMtftp4ConfigData->StationIp.Addr) = (10 | 192 << 8 | 13 << 16 | 83 << 24);
-    *(UINT32*)(this->m_pMtftp4ConfigData->SubnetMask.Addr) = (255 | 255 << 8 | 255 << 16 | 128 << 24);
-    *(UINT32*)(this->m_pMtftp4ConfigData->GatewayIp.Addr) = (10 | 192 << 8 | 13 << 16 | 1 << 24);
+    *(UINT32*)(this->m_pMtftp4ConfigData->StationIp.Addr)  = ClientAddr;
+    *(UINT32*)(this->m_pMtftp4ConfigData->SubnetMask.Addr) = SubMask;
+    *(UINT32*)(this->m_pMtftp4ConfigData->GatewayIp.Addr)  = GateWayAddr;
 
     this->m_pMtftp4ConfigData->LocalPort = (UINT16)0;
 

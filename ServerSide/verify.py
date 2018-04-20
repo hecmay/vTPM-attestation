@@ -9,6 +9,7 @@ import re
 import ssl
 import time
 import base64
+import binascii
 from binascii import a2b_base64, b2a_hex, a2b_hex
 from Crypto.Random import random
 from Crypto import Random
@@ -42,7 +43,7 @@ def verify_record():
     print "[INFO] Start Credential Verification...\n"
     
 def random_number():
-    return random.getrandbits(32)
+    return random.getrandbits(24)
 
 def create_keys(keysize = 1024, save = False):
     random_generator = Random.new().read
@@ -127,22 +128,26 @@ if __name__ == '__main__':
     print encode, '\n' 
 
     digest = SHA256.new()
-    digest.update(str(368137416))
+    digest.update(str(-729373007))
     print "Raw Session key: ", str(digest.hexdigest())
 
-    hex_str = get_session_key([0,0,368137416])
-    aes_encrypt = AES_ENCRYPT(get_session_key([0,0,368137416]))  
+    hex_str = get_session_key([0,0,-729373007])
+    aes_encrypt = AES_ENCRYPT(hex_str) 
     print "The session key[d]: %s", len(hex_str), hex_str
-    # print "Convert Str to Hex", hex(int(get_session_key([0,0,368137416]), 16))
+    # print "Convert Str to HEx", hex(int(get_session_key([0,0,368137416]), 16))
     # print "Convert HEx Str to binary: ", bin(int(hex_str, 16))[2:]
     # print "Convert HEx Str to binary: ", a2b_hex(hex_str)
     # print "The orginal hex_str len: ", len(hex_str), "After: ", len(a2b_hex(hex_str))
 
-    text = "Pre Master: -647657897=========="
+    text = "Pre Master: -1875847051========="
     e = aes_encrypt.encrypt(text)
     d = aes_encrypt.decrypt(e)
     print text
     print e
     print d
+  
+    raw = "1FEE1726FC38FBE5E533C441B1D28C7B63552AEA1DBAE847D149A0043A63E04A"
+    d1 = aes_encrypt.decrypt(raw)
+    print "Check: ", d1
 
     

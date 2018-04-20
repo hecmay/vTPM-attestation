@@ -53,7 +53,7 @@ case $1 in
     ;;
 "test-socket")
     cd edk2
-    build -p MdeModulePkg/MdeModulePkg.dsc -t GCC5 -b DEBUG -a X64 -m RmtPkg/tcpsocket.inf
+    build -p MdeModulePkg/MdeModulePkg.dsc -t GCC5 -b DEBUG -a X64 -m RmtPkg/TcpSocket.inf
     ll Build/MdeModule/DEBUG_GCC5/X64/TestSocket.efi
     md5sum Build/MdeModule/DEBUG_GCC5/X64/TestSocket.efi
     cd ..

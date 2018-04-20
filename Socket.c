@@ -192,7 +192,7 @@ SOCKET_STATUS Send(int sk, VOID* Data, UINTN Lenth)
     this->SendToken.Packet.TxData=  this->m_TransData;
     Status = this->m_pTcp4Protocol -> Transmit(this->m_pTcp4Protocol, &this->SendToken);
     if( !EFI_ERROR(Status)){
-        Print(L"\nSending Data Now: %d\n", Status);
+        Print(L"\n[Debug] Sending Data Now [%d]\n", Status);
     }
     
     //SocketWait(this->SendToken.CompletionToken.Event);  
@@ -201,12 +201,12 @@ SOCKET_STATUS Send(int sk, VOID* Data, UINTN Lenth)
     
     Status = gBS->CreateEvent(EVT_TIMER, TPL_CALLBACK, 
              (EFI_EVENT_NOTIFY)NULL, (VOID*)NULL, &myEvent);
-    Status = gBS->SetTimer(myEvent, TimerPeriodic, 50*1000*1000);
+    Status = gBS->SetTimer(myEvent, TimerPeriodic, 20*1000*1000);
     Status = gBS->WaitForEvent(1, &myEvent, &index);
-    Print(L"Wait Status: %d\n", Status);
+    Print(L"[Debug] Wait Status [%d]\n", Status);
     Status = this->SendToken.CompletionToken.Status;
     if( !EFI_ERROR(Status)){
-        Print(L"Send Data Success: %d\n", Status);
+        Print(L"[Debug] Send Data Success [%d]\n", Status);
     }
     return Status;
     //return this->SendToken.CompletionToken.Status;
@@ -227,7 +227,7 @@ SOCKET_STATUS Recv(int sk, CHAR8* Buffer, UINTN Lenth)
     this->RecvToken.Packet.RxData=  this->m_RecvData;
     Status = this->m_pTcp4Protocol -> Receive(this->m_pTcp4Protocol, &this->RecvToken);
     if( !EFI_ERROR(Status)){
-        Print(L"\nRecving Data Now: %d\n", Status);
+        Print(L"\n[Debug] Recving Data Now [%d]\n", Status);
     }
     
     UINTN index = 0;
@@ -238,10 +238,10 @@ SOCKET_STATUS Recv(int sk, CHAR8* Buffer, UINTN Lenth)
              (VOID*)NULL, &myEvent);
     Status = gBS->SetTimer(myEvent, TimerPeriodic, 20*1000*1000);
     Status = gBS->WaitForEvent(1, &myEvent, &index);
-    Print(L"Wait Status: %d\n", Status);
+    Print(L"[debug] Wait Status [%d]\n", Status);
     Status = this->RecvToken.CompletionToken.Status;
     if( !EFI_ERROR(Status)){
-        Print(L"Recv Data Success: %d\n", Status);
+        Print(L"[Debug] Recv Data Success [%d]\n", Status);
     }
     return Status;
     //return this->RecvToken.CompletionToken.Status;
@@ -288,12 +288,12 @@ EFI_STATUS Connect0(int sk)
     EFI_STATUS                           Status = EFI_NOT_FOUND;
     struct Socket* this = Socketfd[sk]; 
     if(this->m_pTcp4Protocol == NULL) {
-        Print(L"The Socketfd is Null");
+        Print(L"[Fail] The Socketfd is Null\n");
         return Status; 
     }
     Status = this->m_pTcp4Protocol -> Connect(this->m_pTcp4Protocol, &this->ConnectToken);
     if(EFI_ERROR(Status)){
-        Print(L"Connect0 Error Code: %d\n", Status);
+        Print(L"[Fail] Connect0 Error [%d]\n", Status);
         return Status;
     }
 
@@ -301,13 +301,13 @@ EFI_STATUS Connect0(int sk)
     EFI_EVENT myEvent;
     Status = gBS->CreateEvent(EVT_TIMER, TPL_CALLBACK, 
              (EFI_EVENT_NOTIFY)NULL, (VOID*)NULL, &myEvent);
-    Status = gBS->SetTimer(myEvent, TimerPeriodic, 50*1000*1000);
+    Status = gBS->SetTimer(myEvent, TimerPeriodic, 20*1000*1000);
     Status = gBS->WaitForEvent(1, &myEvent, &index);
-    Print(L"Wait Status: %d\n", Status);
+    Print(L"[Debug] Wait Status [%d]\n", Status);
     
     Status = this->ConnectToken.CompletionToken.Status;
     if( !EFI_ERROR(Status)){
-        Print(L"Connect Success: %d\n", Status);
+        Print(L"[Debug] Connect Success [%d]\n", Status);
     }
     return Status;
 }
@@ -317,10 +317,10 @@ SOCKET_STATUS Connect(int fd, UINT32 Ip32, UINT16 Port)
         EFI_STATUS Status;
         Status = Config(fd, Ip32, Port);
         if(EFI_ERROR(Status)){
-            Print(L"Config Error Code: %d\n", Status);
+            Print(L"[Debug] Config Error [%d]\n", Status);
         }
         else{
-            Print(L"Config Sucess Code: %d\n", Status);
+            Print(L"[Debug] Config Sucess [%d]\n", Status);
         }
 	return Connect0(fd);
 }

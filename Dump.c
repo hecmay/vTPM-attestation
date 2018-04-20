@@ -17,9 +17,9 @@ EFI_STATUS TestMtftpConnection (IN EFI_HANDLE ImageHandle);
 
 VOID 
 CheckStatus (
-        IN CHAR16 *Text,
-        IN EFI_STATUS Status
-        )
+  IN CHAR16 *Text,
+  IN EFI_STATUS Status
+  )
 {
    if (EFI_ERROR(Status)){
      Print(L"Error Status %d of %s", Status, Text);
@@ -31,8 +31,8 @@ CheckStatus (
 
 EFI_STATUS
 DumpData (
-      IN CHAR16 *TextBuffer
-      )
+  IN CHAR16 *TextBuffer
+  )
 {
    UINTN BufferSize;
    EFI_STATUS Status;
@@ -79,9 +79,9 @@ DumpData (
 EFI_STATUS
 EFIAPI
 ShellAppMain (
-          IN UINTN    Argc,
-          IN CHAR16   **Argv
-          )
+  IN UINTN    Argc,
+  IN CHAR16   **Argv
+  )
 { 
    // Test FileIo Writing
    EFI_STATUS Status;

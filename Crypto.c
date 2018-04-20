@@ -51,7 +51,7 @@ UintToCharSize( UINT8  *UintStr,
 }
 
 //
-// Sha256 Encrytion
+// Sha256 Encrytion: Hex in Unicode format will be returned to Buffer
 //
 EFI_STATUS
 Sha256CryptoData(

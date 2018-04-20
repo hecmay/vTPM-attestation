@@ -158,8 +158,9 @@ EFI_STATUS ReadFileToMem (
         Print(L"%d, %s\n", Index, Buffer);
         DumpData(Buffer, (CHAR16*)L"data.log", BufferSize);
     }
+
     // Test List Directory
-    ListDirectory(Root, ListFileInfo);
+    // ListDirectory(Root, ListFileInfo);
     Status = SystemFile->Close(SystemFile);
     return Status;
 }

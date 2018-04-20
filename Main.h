@@ -29,14 +29,17 @@ EFI_STATUS AesDecryptoData(IN UINT64 Nounce, IN CHAR8 *RecvBuffer, OUT UINT8 *De
 // Test FTP Client
 EFI_STATUS TestMtftpConnection (IN EFI_HANDLE ImageHandle);
  
-//Dump data into certain file
+// Dump data into certain file
 EFI_STATUS DumpData(IN VOID *TextBuffer, CONST CHAR16 *Filename, IN OUT UINTN *BufSize);
 
-//Read the content of certain file into memory
+// Read the content of certain file into memory
 EFI_STATUS ReadFileToMem(IN OUT CHAR16* Buffer, IN UINTN* BufferSize, IN CHAR16* Filename);
 
-//Get a nouce from the TPM 1.2
+// Get a nouce from the TPM 1.2
 EFI_STATUS GetRandom(IN UINT32* Nounce);
+
+// Retrieve Event Log List and Dump to Buffer
+EFI_STATUS GetEventLog(IN CHAR16 *TextBuffer);
 
 // Get the File Size from the FTP server
 EFI_STATUS GetFileSize (IN int sk, IN CONST CHAR8 *FilePath, OUT UINTN *FileSize);

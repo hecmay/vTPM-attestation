@@ -69,14 +69,6 @@ GetRandom(IN UINT32* Nounce)
         return EFI_DEVICE_ERROR;
     }
 
-    //Print(L"Number of Random Bytes Requested: %d\n", SwapBytes32(InBuffer.BytesRequested));
-    //Print(L" Number of Random Bytes Received: %d\n", RandomBytesSize);
-    //Print(L"           Ramdom Bytes Received: ");
-    //for (int i = 0; i < RandomBytesSize; i++) {
-    //    Print(L"%02x ", OutBuffer.RandomBytes[i]);
-    //}
-    //Print(L"\n");
-    //Print(L"Output Nounce: %d\n", SwapBytes32(*((UINT32*)OutBuffer.RandomBytes)));
     *Nounce = SwapBytes32(*((UINT32*)OutBuffer.RandomBytes));
     return Status;
 }

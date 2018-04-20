@@ -16,6 +16,7 @@
   Main.c
   Socket.c
   PcrValue.c
+  EventLog.c
   Mtftp.c
   Crypto.c
   FileIo.c
@@ -43,7 +44,7 @@
   gEfiMtftp4ServiceBindingProtocolGuid
   gEfiMtftp4ProtocolGuid
   gEfiSimpleFileSystemProtocolGuid
-  gEfiRuntimeCryptProtocolGuid            ## PRODUCES
+  gEfiRuntimeCryptProtocolGuid            ## CONSUMES
 
 [BuildOptions]  
     MSFT:*_*_X64_CC_FLAGS     =/GL- 

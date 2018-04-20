@@ -68,29 +68,33 @@ class start_server(threading.Thread):
         web.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         web.bind(ip_port)
         web.listen(5)
-        print "Server Listening..."
+        print "[INFO] Server Listening..."
         global exitFlag, eventFlag, pcrFlag, random_num
         
         while exitFlag == 0:
           session_key = 0
           conn, addr = web.accept()
-          print "Connection from: ", addr
+          print "[INFO] Connection from: ", addr
           while exitFlag == 0:
             data = conn.recv(buffer_size)
             if not data:
               break
 
-            print "Recv Data: ", data
+            print "[INFO] Recv Data: ", data, "\n"
             content, encode = msg_processing(data, session_key)
-            print "Sent Original Data: ", content
-            print "Sent Encoded Data: ", encode
+            print "[INFO] Sent Original Data: ", content
+            print "[INFO] Sent Encoded  Data: ", encode
 
             # create session key if handshake established
             if len(random_num) == 3 and session_key == 0:
                 session_key = get_session_key(random_num)
+                print "[INFO] The Random number List: ", random_num
                 random_num = []
 
-            conn.sendall(encode.encode("utf-8"))    
+            if encode != "None":
+              conn.sendall(encode.encode("utf-8"))    
+            else:
+              pass
 
             # verify the client's credentials after data collection
             if eventFlag == True and pcrFlag == True:
@@ -178,7 +182,7 @@ def msg_processing(data, session_key):
     # plain text transmission berfore handshake established 
     if data.isspace() == False and session_key == 0:
         if data.find("Hello") >= 0: 
-            nounce = re.search(r'(\d+)', data).group(0)
+            nounce = re.search(r'(-*\d+)', data).group(0)
             random_num.append(int(nounce))
             server_nounce = random_number()
             random_num.append(server_nounce)
@@ -186,17 +190,22 @@ def msg_processing(data, session_key):
             value = "Confirm Auth Invitation : " + str(server_nounce) 
             return value, value  
         elif data.find("Master") >= 0: 
-            premaster_key = re.search(r'(\d+)', data).group(0)
+            premaster_key = re.search(r'(-*\d+)', data).group(0)
             random_num.append(int(premaster_key))
             print "[INFO] Get Pre-Master Key from the client: ", premaster_key, "\n"
             return "Done", "Done"
         else:
-            return "Meaningless", "Meaningless"
+            return "None", "None"
 
     # data encryption with session key after handshake
     elif data.isspace() == False and session_key != 0:
-        aes_encrypt = AES_ENCRYPT(session_key)  
-        decode = aes_encrypt.decrypt(data)
+        print "[INFO] Data to be decryted: ", data, "\n"
+        print "[Debug] The session Key(Hex): ", b2a_hex(session_key)
+        try: 
+          aes_encrypt = AES_ENCRYPT(session_key)  
+          decode = aes_encrypt.decrypt(data)
+        except:
+          decode = "None"
         if decode.find("Event") >= 0: 
             filename = "event.log"
             dump_data(decode, filename)
@@ -211,11 +220,13 @@ def msg_processing(data, session_key):
             print "[INFO] Collect PCR Logs\n"
             encode = aes_encrypt.encrypt("PCR Saved")
             return "PCR saved", encode
+        else:
+            return "None", "None"
     
     # received nothing
     else:
         print "[Warning] Meaningless", data, "\n"
-        return "Nothing saved", "Nothing saved"
+        return "None", "None"
             
 def dump_data(data, filename):
     with open(filename, 'w') as f:

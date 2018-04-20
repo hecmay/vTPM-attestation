@@ -36,7 +36,7 @@ Dump_PcrDigest(OUT CHAR16* Buffer,
         StrCatS(Buffer, 4096, Convert);
     }
     StrCatS(Buffer, 4096, (CHAR16*)L"\n");
-    Print(L"\nPcrValue return: %s\n", Buffer);
+    //Print(L"\nPcrValue return: %s\n", Buffer);
 }
 
 

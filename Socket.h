@@ -1,5 +1,6 @@
 #ifndef __NETWORK_HEADER__
 #define __NETWORK_HEADER__
+
 #ifdef __cplusplus
 extern "C"{
 #endif
