@@ -107,7 +107,7 @@ static SOCKET_STATUS Initialize(int sk)
         Print(L"Failed to Create the Connection Event: %d\n", Status); 
         return Status;    
     }
-    Print(L"\nInitiliazation Success\n");
+    Print(L"\n[Info] TCP Initiliazation Success\n");
     return Status;
 }
 //Socket::Socket()

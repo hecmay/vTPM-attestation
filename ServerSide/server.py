@@ -16,7 +16,7 @@ random_num = []
 exitFlag = 0
 pcrFlag = False
 eventFlag = False
-status = False
+status = "Safe"
 
 # Create the Engine sqlite://<nohostname>/<path>
 DB_CONNECT = 'sqlite:///Secure.db'
@@ -62,14 +62,14 @@ class start_server(threading.Thread):
         self.counter = counter
     def run(self):
         ip_port = ('',8000)
-        buffer_size = 2048
+        buffer_size = 20480
         web = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         #web.settimeout(CHECK_TIMEOUT)
         web.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         web.bind(ip_port)
         web.listen(5)
         print "[INFO] Server Listening..."
-        global exitFlag, eventFlag, pcrFlag, random_num
+        global exitFlag, eventFlag, pcrFlag, random_num, status
         
         while exitFlag == 0:
           session_key = 0
@@ -98,11 +98,15 @@ class start_server(threading.Thread):
 
             # verify the client's credentials after data collection
             if eventFlag == True and pcrFlag == True:
-                start_sqlite()
+                print '[INFO] Completed Data Collection\n'
+                start_sqlite(b2a_hex(session_key))
                 status = verify_record()
-                conn.sendall(status.encode("utf-8"))    
+                aes_encrypt = AES_ENCRYPT(session_key)  
+                result = aes_encrypt.encrypt(status)
+                
+                conn.sendall(result.encode("utf-8"))    
                 eventFlag, pcrFlag = False, False  
-                exitFlag = 1
+                session_key, exitFlag = 0, 1
           conn.close()
         web.close()
 
@@ -123,31 +127,48 @@ class start_tftp(threading.Thread):
      SHA1 Digest: B6AE9742D3936A4291CFED8DF775BC4657E368C0
      Event Size: 47'''
 
-def start_sqlite():
-    if (pcrFlag == True) and (eventFlag == True):
-        pcrItem, eventItem = [], []
-        with open('pcr.log', 'r') as f:
-            for line in f.readlines():
-                pcrItem.append(line)
-        with open('event.log', 'r') as f:
-            for line in f.readlines():
-                index, category, digest, size = event_process(line)
+def verify_record():
+    # Assume Safe in Default
+    result = "Safe" 
+    return result 
+
+# start pasring and save the uploaded TFTP data
+def start_sqlite(session_key):
+    import os
+    os.system("tr -d '\\000' < /tftpboot/PcrValue.log > PcrValue.log")
+    os.system("tr -d '\\000' < /tftpboot/Event.log > Event.log")
+    pcrItem, eventItem = [], []
+    with open('PcrValue.log', 'r') as f:
+        for line in f.readlines():
+            pcrItem.append(line)
+
+    i, index, category, digest, size = 0, 0, 0, 0, 0 
+    with open('Event.log', 'r') as f:
+        for line in f.readlines():
+            tag, value = event_process(line)
+            if tag == 1: index    = value; i += 1
+            if tag == 2: category = value; i += 1
+            if tag == 3: digest   = value; i += 1
+            if tag == 4: size     = value; i += 1
+            if i % 4 == 0:
+                i = 0
                 eventItem.append([index, category, digest, size])
-        update_db(pcrItem, eventItem)
-    else:
-        pass            
+            else: pass
+    print pcrItem, '\n\n', eventItem
+    update_db(pcrItem, eventItem, session_key)
 
 
 def event_process(line):
-    index, category, digest, size = 0, 0, 0, 0
-    if "Index" in line: index = re.search(r'(\d)', line).group(1)
-    if "Type"  in line: index = re.search(r':(.*)', line).group(1)
-    if "SHA1"  in line: index = re.search(r':(.*)', line).group(1)
-    if "Size"  in line: index = re.search(r'(\d+)', line).group(1)
-    return index, category, digest, size
+    line = line.encode('utf-8')
+    tag, value = 3, line
+    if "Index" in line: tag, value = 1, re.search(r'(\d)', line).group(1)
+    if "Type"  in line: tag, value = 2, re.search(r':(.*)', line).group(1)
+    if "SHA1"  in line: tag, value = 3, re.search(r':(.*)', line).group(1)
+    if "Size"  in line: tag, value = 4, re.search(r'(\d+)', line).group(1)
+    return tag, value
 
 
-def update_db(pcr, event):
+def update_db(pcr, event, session_key):
     eventList = []
     for item in event:
         e = EventRecord(
@@ -157,9 +178,10 @@ def update_db(pcr, event):
               eventSize = item[3])
         eventList.append(e)
 
-    redudency = 8 - len(pcr)
-    for index in range(redudency):
-        pcr.append(0) 
+    # redudency = 8 - len(pcr)
+    # for index in range(redudency):
+    #     pcr.append(0) 
+
     item = PcrRecord(
              pcr0 = pcr[0],     
              pcr1 = pcr[1],     
@@ -169,6 +191,7 @@ def update_db(pcr, event):
              pcr5 = pcr[5],     
              pcr6 = pcr[6],     
              pcr7 = pcr[7],
+             secretKey = session_key, 
              time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
     item.event = eventList
 
@@ -177,7 +200,7 @@ def update_db(pcr, event):
 
  
 def msg_processing(data, session_key):
-    global random_num
+    global random_num, eventFlag, pcrFlag
 
     # plain text transmission berfore handshake established 
     if data.isspace() == False and session_key == 0:
@@ -203,19 +226,20 @@ def msg_processing(data, session_key):
         print "[Debug] The session Key(Hex): ", b2a_hex(session_key)
         try: 
           aes_encrypt = AES_ENCRYPT(session_key)  
-          decode = aes_encrypt.decrypt(data)
+          clean = clean_data(data)
+          decode = aes_encrypt.decrypt(clean)
+          print "[INFO] Cleaned data: ", clean
+          print "[INFO] Decrypted Data: ", decode
         except:
           decode = "None"
+
         if decode.find("Event") >= 0: 
-            filename = "event.log"
-            dump_data(decode, filename)
             eventFlag = True
             print "[INFO] Collect Event Logs\n"
             encode = aes_encrypt.encrypt("Event Saved")
             return "Event saved", encode
-        elif decode.find("TPM") >= 0:
-            filename = "pcr.log"
-            dump_data(decode, filename)
+
+        elif decode.find("PCR") >= 0:
             pcrFlag = True
             print "[INFO] Collect PCR Logs\n"
             encode = aes_encrypt.encrypt("PCR Saved")
@@ -227,12 +251,20 @@ def msg_processing(data, session_key):
     else:
         print "[Warning] Meaningless", data, "\n"
         return "None", "None"
-            
+    
+        
+def clean_data(data):
+    clean = re.search(r'=*(\w+)', data).group(1)
+    if len(clean) % 2 == 0: pass
+    else: clean = clean[:-1]
+    return clean
+
 def dump_data(data, filename):
     with open(filename, 'w') as f:
         f.write(data)
         f.close()
     
+
 threadLock = threading.Lock()
 threads = []
 server_thread = start_server('server_line', 5)
@@ -241,3 +273,7 @@ server_thread.start()
 server_thread.join()
 Msg = ("Safe" if (status == False) else "Warning")  
 print "Verification Completed: Status ", Msg
+
+# drop_db()
+# init_db()
+# start_sqlite('cdbusi')

@@ -31,8 +31,8 @@ RetrieveCertPk(
 )
 {
   EFI_STATUS  Status;
-  CHAR8       *Cert = (CHAR8*)"cert.pem";
-  CHAR16      *CertPath = (CHAR16*)L"cert.pem";
+  CHAR8       *Cert = (CHAR8*)"cert.der";
+  CHAR16      *CertPath = (CHAR16*)L"cert.der";
   VOID        *RsaPubKey;
   VOID        *Data;
   UINTN       CertSize = 0;
@@ -40,13 +40,13 @@ RetrieveCertPk(
   BOOLEAN     Result = FALSE;
 
   //
-  // Get File Info from server
+  // Get File Info of DER-coded X509 Cert from server
   //
   Status = GetFileSize(MtftpId, Cert, &CertSize);
-  if(EFI_ERROR(Status)) CertSize = 1245;
+  if(EFI_ERROR(Status)) CertSize = 997;
   
   //
-  // DownLoad Cert File To Buffer and Dump into File
+  // DownLoad Cert File To Buffer and Dump into File specified by CertPath
   //
   Status = DownloadFile (MtftpId, Cert, CertSize, BlockSize, &Data);
   DumpData(Data, CertPath, &CertSize);
@@ -58,6 +58,8 @@ RetrieveCertPk(
   Result = RsaGetPublicKeyFromX509((UINT8*)Data, CertSize, &RsaPubKey); 
   if (Result) {
       Print(L"[Success] RSA Public Key Retrieved Successfully\n");
+      //Status = X509VerifyCert ((UINT8*)Data, CertSize, TestCACert, sizeof (TestCACert));
+      //if (EFI_ERROR(Status)) Print(L"[Warning] Cert issued from unrecognized CA\n");
   } else {
       Print(L"[Fail] RSA PK Retrieved Failed\n");
   }
@@ -99,15 +101,6 @@ RecvMsgProcessing(
 
     Nounce2 = AsciiStrDecimalToUintn(Pointer);
     Print(L"[Info] The Second Nounce from Server: %d\n", Nounce2);
-
-    //
-    // Connect to the Mtftp Server
-    //
-    Status = MtftpConnect(MtftpId, ServerAddr, 0);
-    if(EFI_ERROR(Status)){
-        Print(L"[Fail] MTFTP Connect Failure Code: %d\n", Status);
-        return Status;
-    }
 
     Status = RetrieveCertPk(MtftpId); 
     if(EFI_ERROR(Status)){
@@ -158,10 +151,22 @@ RecvMsgProcessing(
     Print(L"[Debug] Encrypted Data from server: %s\n\n", PrintBuffer); 
 
     //
-    // To send the Pcr Digests
+    // Prepare to send the Pcr Digests
     //
+    UINT8   Record[4096];
     CHAR16  Buffer[4096];
+    CHAR8   TcpMsg[128];
+    UINT8   MsgRecord[128];
+    CHAR8   EncryptoData[8192];
+    CHAR8   ConvertData[8192];
+
+    ZeroMem(Record, sizeof(Record));
     ZeroMem(Buffer, sizeof(Buffer));
+    ZeroMem(TcpMsg, sizeof(TcpMsg));
+    ZeroMem(MsgRecord, sizeof(MsgRecord));
+    ZeroMem(EncryptoData, sizeof(EncryptoData));
+    ZeroMem(ConvertData, sizeof(ConvertData));
+
     Status = ExtractPcrValue(Buffer);
     if (EFI_ERROR(Status)) {
       Print(L"[Debug] The Extraction Process Aborted\n");
@@ -169,6 +174,30 @@ RecvMsgProcessing(
       Print(L"[Debug] Extract Success...\n");
       Print(L"[Debug] Return Result:\n %s", Buffer);
     }
+    Status = Write(MtftpId, (UINT8*)"PcrValue.log", Buffer, 4096);
+
+    //
+    // Inform server with Encrypted Msg using TCP tunnel
+    //
+    AsciiSPrint(TcpMsg, 128, "[INFO] PCR Sent.");
+    AesCryptoData(Nounce, TcpMsg, MsgRecord, sizeof(MsgRecord));
+    ZeroMem(TcpMsg, sizeof(TcpMsg));
+    AsciiSPrint(TcpMsg, 128, "=====");
+    UintToCharSize(MsgRecord, 256, TcpMsg);
+    Status = Send(SocketId, TcpMsg, sizeof(TcpMsg)+2);
+
+    //
+    // Encrypt the data using Aes-128 algorithm and transmit with TFTP
+    //
+    UnicodeStrToAsciiStrS(Buffer, EncryptoData, sizeof(EncryptoData));   
+    AesCryptoData(Nounce, EncryptoData, Record, sizeof(Record));
+    UintToCharSize(Record, 8192, ConvertData); 
+    Status = Write(MtftpId, (UINT8*)"EncryptPcr.log", ConvertData, 8192);
+    
+    //
+    // Hash the data and encrypt the diegst with Rsa PubKey for ServerSide Auth
+    //
+    
     
     //
     // To send the Event Log
@@ -178,7 +207,18 @@ RecvMsgProcessing(
     Status = GetEventLog(TextBuffer);
     Print(L"[Debug] The Event Log has been extracted...\n");
     Print(L"[Debug] %s", TextBuffer);
-    Status = Send(SocketId, TextBuffer, sizeof(TextBuffer)+2);
+    Status = Write(MtftpId, (UINT8*)"Event.log", TextBuffer, 40960);
+
+    //
+    // Inform server with 
+    //
+    AsciiSPrint(TcpMsg, 128, "[INFO] Event Sent.");
+    ZeroMem(MsgRecord, sizeof(MsgRecord));
+    AesCryptoData(Nounce, TcpMsg, MsgRecord, sizeof(MsgRecord));
+    ZeroMem(TcpMsg, sizeof(TcpMsg));
+    AsciiSPrint(TcpMsg, 128, "=====");
+    UintToCharSize(MsgRecord, 256, TcpMsg);
+    Status = Send(SocketId, TcpMsg, sizeof(TcpMsg)+2);
 
     Status = EFI_ABORTED;
   }
@@ -216,6 +256,15 @@ ShellAppMain (
    Status = Connect(WebSocket, ServerAddr, 8000);
    if(EFI_ERROR(Status)){
        Print(L"[Fail] TCP Connect Failure Code: %d\n", Status);
+       return Status;
+   }
+
+   //
+   // Connect to the Mtftp Server
+   //
+   Status = MtftpConnect(WebMtftpClient, ServerAddr, 0);
+   if(EFI_ERROR(Status)){
+       Print(L"[Fail] MTFTP Connect Failure Code: %d\n", Status);
        return Status;
    }
 

@@ -63,7 +63,7 @@ static EFI_STATUS Initialize(int sk)
     this->WriteToken.Status = EFI_ABORTED;
     Status = gBS->CreateEvent(EVT_NOTIFY_SIGNAL, TPL_CALLBACK, (EFI_EVENT_NOTIFY)NopNoify , (VOID*)&this->WriteToken, &this->WriteToken.Event);
     if(EFI_ERROR(Status)){
-        Print(L"Failed to Create the MTFTP WriteToken Event: %d\n", Status); 
+        Print(L"[Fail] Failed to Create the MTFTP WriteToken Event [%d]\n", Status); 
         return Status;    
     }
     
@@ -71,12 +71,12 @@ static EFI_STATUS Initialize(int sk)
     this->ReadToken.Status = EFI_ABORTED;
     Status = gBS->CreateEvent(EVT_NOTIFY_SIGNAL, TPL_CALLBACK, (EFI_EVENT_NOTIFY)NopNoify , (VOID*)&this->ReadToken, &this->ReadToken.Event);
     if(EFI_ERROR(Status)){
-        Print(L"Failed to Create the MTFTP ReadToken Event: %d\n", Status); 
+        Print(L"[Fail] Failed to Create the MTFTP ReadToken Event [%d]\n", Status); 
         return Status;    
     }
 
     // Complete init
-    Print(L"\nMTFTP Initiliazation Success\n");
+    Print(L"\n[Debug] MTFTP Initiliazation Success\n");
     return Status;
 }
 
@@ -110,14 +110,14 @@ int MtftpClient()
                                   NULL,
                                   (VOID **)&pMtftpServiceBinding);
     if(EFI_ERROR(Status)){
-        Print(L"Unable to Locate Mtftp4ServiceBindingProtocol\n");
+        Print(L"[Fail] Unable to Locate Mtftp4ServiceBindingProtocol\n");
         return (int)Status;
     }
 
     Status = pMtftpServiceBinding->CreateChild ( pMtftpServiceBinding,
                                                &this->m_MtftpHandle );
     if(EFI_ERROR(Status)){
-        Print(L"Unable to create Child for Mtftp Handle\n");
+        Print(L"[Fail] Unable to create Child for Mtftp Handle\n");
         return (int)Status;
     }
           
@@ -129,7 +129,7 @@ int MtftpClient()
                                  this->m_MtftpHandle,
                                  EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL );
     if(EFI_ERROR(Status)){
-        Print(L"Unable to create Child for Mtftp Handle\n");
+        Print(L"[Fail] Unable to create Child for Mtftp Handle\n");
         return (int)Status;
     }
 
@@ -148,7 +148,6 @@ static EFI_STATUS MtftpConfig(int sk, UINT32 Ip32, UINT16 Port)
         return Status;
     }
 
-    Print(L"To Cinfig the Data...12\n");
     // StationIp & SubnetMask & GatewayIp need to be set if FALSE
     this->m_pMtftp4ConfigData->UseDefaultSetting = FALSE;
     *(UINT32*)(this->m_pMtftp4ConfigData->StationIp.Addr)  = ClientAddr;
@@ -175,13 +174,13 @@ CheckCallback(IN EFI_MTFTP4_PROTOCOL *This,
                          IN EFI_MTFTP4_PACKET *Packet)
 {
     EFI_STATUS Status = EFI_SUCCESS;
-    Print(L"Parse the received Packet\n");
+    Print(L"[Debug] Parse the received TFTP Packet\n");
 
-    Print(L"\nOperation Code: %d\n", Packet->OpCode);
+    Print(L"\n[Debug] Operation Code: %d\n", Packet->OpCode);
     AsciiPrint("Msg: %s\n", Packet->Wrq.Filename[0]);
 
-    Print(L"\nError Code: %d   Msg: %s\n", Packet->Error.ErrorCode, Packet->Error.ErrorMessage[0]);
-    AsciiPrint("Msg: %s\n", Packet->Error.ErrorMessage[0]);
+    Print(L"\n[Debug] Error [%d] Msg: %s\n", Packet->Error.ErrorCode, Packet->Error.ErrorMessage[0]);
+    AsciiPrint("[Debug] Msg: %s\n", Packet->Error.ErrorMessage[0]);
     return Status;
 }
 
@@ -192,7 +191,7 @@ myTimeoutCallback(IN EFI_MTFTP4_PROTOCOL *This,
                              IN EFI_MTFTP4_TOKEN *Token)
 {
     EFI_STATUS Status = EFI_NOT_FOUND;
-    Print(L"The MTFTP Transmission is time out %d\n", Token->Status);
+    Print(L"[Error] The MTFTP Transmission is time out %d\n", Token->Status);
     return Status;
 } 
 
@@ -232,9 +231,9 @@ GetFileSize (
              );
 
   if (EFI_ERROR (Status)) {
-    Print(L"\nCannot GetInfo from FTP Server: %d\n", Status);
-    Print(L"Operation Code: %d\n", Packet->OpCode);
-    Print(L"Error Code: %d   Msg: %d\n", Packet->Error.ErrorCode, Packet->Error.ErrorMessage[0]);
+    Print(L"\n[Error] Cannot GetInfo from FTP Server: %d\n", Status);
+    Print(L"[Debug] Operation Code: %d\n", Packet->OpCode);
+    Print(L"[debug] Error [%d]  Msg: %d\n", Packet->Error.ErrorCode, Packet->Error.ErrorMessage[0]);
     goto Error;
   }
 
@@ -246,7 +245,7 @@ GetFileSize (
              &TableOfOptions
              );
   if (EFI_ERROR (Status)) {
-    Print(L"Cannot Parse Option: %d\n", Status);
+    Print(L"[Error] Cannot Parse Option: %d\n", Status);
     goto Error;
   }
 
@@ -408,12 +407,12 @@ Error :
   }
 
   *Data = Buffer;
-  Print(L"DownLoad Data Successfully\n");
+  Print(L"[Info] DownLoad Data Successfully\n");
   return EFI_SUCCESS;
 }
 
 
-EFI_STATUS Write(int sk, UINT8* Path, CHAR8* Data, UINTN Lenth)
+EFI_STATUS Write(int sk, UINT8* Path, VOID* Data, UINTN Lenth)
 {
     EFI_STATUS Status = EFI_NOT_FOUND;
     struct MtftpClient* this = MtftpClientfd[sk]; 
@@ -434,7 +433,7 @@ EFI_STATUS Write(int sk, UINT8* Path, CHAR8* Data, UINTN Lenth)
     
     Status = this->m_pMtftp4Protocol->WriteFile(this->m_pMtftp4Protocol, &this->WriteToken);
     if(!EFI_ERROR(Status)){
-        Print(L"\nWriting Data Now: %d\n", Status);
+        Print(L"\n[Debug] Writing Data Now [%d]\n", Status);
     }
     
     UINTN index = 0;
@@ -444,16 +443,16 @@ EFI_STATUS Write(int sk, UINT8* Path, CHAR8* Data, UINTN Lenth)
              (EFI_EVENT_NOTIFY)NULL, (VOID*)NULL, &myEvent);
     Status = gBS->SetTimer(myEvent, TimerPeriodic, 50*1000*1000);
     Status = gBS->WaitForEvent(1, &myEvent, &index);
-    Print(L"Wait Status: %d\n", Status);
+    Print(L"[Debug] Wait Status [%d]\n", Status);
     Status = this->WriteToken.Status;
     if( !EFI_ERROR(Status)){
-        Print(L"Writing Data Success: %d\n", Status);
+        Print(L"[Debug] Writing Data Success [%d]\n", Status);
     }
     return Status;
 }
 
 
-EFI_STATUS Read(int sk, UINT8* Path,  CHAR8* Buffer, UINTN Lenth)
+EFI_STATUS Read(int sk, UINT8* Path,  VOID* Buffer, UINTN Lenth)
 {
     EFI_STATUS Status = EFI_NOT_FOUND;
     struct MtftpClient* this = MtftpClientfd[sk]; 
@@ -470,7 +469,7 @@ EFI_STATUS Read(int sk, UINT8* Path,  CHAR8* Buffer, UINTN Lenth)
 
     Status = this->m_pMtftp4Protocol->ReadFile(this->m_pMtftp4Protocol, &this->ReadToken);
     if( !EFI_ERROR(Status)){
-        Print(L"\nReading Data Now: %d\n", Status);
+        Print(L"\n[Debug] Reading Data Now [%d]\n", Status);
     }
     
     UINTN index = 0;
@@ -479,12 +478,12 @@ EFI_STATUS Read(int sk, UINT8* Path,  CHAR8* Buffer, UINTN Lenth)
     Status = gBS->CreateEvent(EVT_TIMER, TPL_CALLBACK, 
              (EFI_EVENT_NOTIFY)NULL, 
              (VOID*)NULL, &myEvent);
-    Status = gBS->SetTimer(myEvent, TimerPeriodic, 60*1000*1000);
+    Status = gBS->SetTimer(myEvent, TimerPeriodic, 50*1000*1000);
     Status = gBS->WaitForEvent(1, &myEvent, &index);
-    Print(L"Wait Status: %d\n", Status);
+    Print(L"[Debug] Wait Status [%d]\n", Status);
     Status = this->ReadToken.Status;
     if( !EFI_ERROR(Status)){
-        Print(L"FTP Read Data Success: %d\n", Status);
+        Print(L"[Debug] FTP Read Data Success [%d]\n", Status);
     }
     return Status;
 }
@@ -502,13 +501,17 @@ static int Destroy(int sk)
                                                     this->m_MtftpHandle );
     }
 
+    //
     // Close the Event created
+    //
     if(this->WriteToken.Event)
         gBS->CloseEvent(this->WriteToken.Event);    
     if(this->ReadToken.Event)
         gBS->CloseEvent(this->ReadToken.Event);
     
+    //
     // Free the memory allocatino 
+    //
     if(this->m_pMtftp4ConfigData){
 	free(this->m_pMtftp4ConfigData);
     }
@@ -516,27 +519,29 @@ static int Destroy(int sk)
 }
 
 
-
+//
 // Connect the FTP Server
+//
 EFI_STATUS MtftpConnect(int fd, UINT32 Ip32, UINT16 Port)
 {
         EFI_STATUS Status;
         Status = MtftpConfig(fd, Ip32, Port);
         if(EFI_ERROR(Status)){
-            Print(L"Config Error Code: %d\n", Status);
+            Print(L"[Debug] MTFTP Config Error [%d]\n", Status);
         }
         else{
-            Print(L"Config Sucess Code: %d\n", Status);
+            Print(L"[Info] MTFTP Config Sucess [%d]\n", Status);
         }
 	return Status;
 }
+
 
 EFI_STATUS MtftpClose(int sk)
 {
 	EFI_STATUS Status;
 	struct MtftpClient* this = MtftpClientfd[sk]; 
 	Status = this->WriteToken.Status;
-	Print(L"Close Status %r\n", Status);
+	Print(L"[Debug] Close Status [%r]\n", Status);
 
 	Destroy(sk);
 	free(this);

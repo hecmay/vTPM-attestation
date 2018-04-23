@@ -41,7 +41,7 @@ UintToCharSize( UINT8  *UintStr,
 {
     CHAR8 Convert[16];
     int len = length;
-    while (*UintStr != '\0' && len > 0) {
+    while (!(*UintStr == '\0' && *(UintStr+1) == '\0')  && len > 0) {
         AsciiSPrint(Convert, 1024, "%02x", 0xff & *(UintStr++));
         AsciiStrCatS(CharStr, 1024, Convert);
         len--;
@@ -85,29 +85,27 @@ Sha256CryptoData(
 
         CHAR16 PrintBuffer[2048];
         AsciiToUnicodeSize(HashData, 2048, PrintBuffer); 
-        Print(L"Data to be Hashed: %s\n", PrintBuffer);
+        Print(L"[Debug] Data to be Hashed: %s\n", PrintBuffer);
 
-        Print (L"Init... \n");
         Status  = mCryptProtocol->Sha256Init (HashCtx);
         if (!Status) {
-          Print (L"[Fail]\n");
+          Print (L"[Fail] Sha256 Init Falied [%d]\n", Status);
           return EFI_ABORTED;
         }
 
-        Print (L"Update... \n");
         Status  = mCryptProtocol->Sha256Update (HashCtx, HashData, DataSize);
         if (!Status) {
-          Print (L"[Fail]\n");
+          Print (L"[Fail] Sha256 Update Falied [%d]\n", Status);
           return EFI_ABORTED;
         }
 
-        Print (L"Finalize... \n");
         Status  = mCryptProtocol->Sha256Final (HashCtx, Digest);
         if (!Status) {
-          Print (L"[Fail]\n");
+          Print (L"[Fail] Sha256 Final Falied [%d]\n", Status);
           return EFI_ABORTED;
         }
 
+        Print(L"[Debug] The Sha256 EncrptData:\n");
         for (Index = 0; Index < SHA256_DIGEST_SIZE; Index++) {
           Print (L"%2X  ",Digest[Index]);
           *(Record + Index) = Digest[Index];
@@ -220,7 +218,6 @@ AesCryptoData (
     //    Print(L"AES Encryption Key: %s\n", Key);  
     //    CHAR16 PrintBuffer[2048];
     //    ZeroMem (PrintBuffer, 2048);
-
 
     Print(L"\n\n[Debug] AES Encryption CBC Mode...");  
     Result = AesCbcEncrypt( AesCtx, 

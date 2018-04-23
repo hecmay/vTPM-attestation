@@ -22,7 +22,7 @@ PrintEventDetail(UINT8 *Detail, UINT32 Size, CHAR16 *TextBuffer)
 
     CHAR16 Convert[128];
     ZeroMem(Convert, sizeof(Convert));
-    UnicodeSPrint(Convert, sizeof(Convert), L"   Event Detail: %08x: ", Offset);
+    UnicodeSPrint(Convert, sizeof(Convert), L"   Event Detail: ");
     StrCatS(TextBuffer, 40960, Convert);
 
     for (int i = 0; i < Size; i++) {
@@ -37,9 +37,6 @@ PrintEventDetail(UINT8 *Detail, UINT32 Size, CHAR16 *TextBuffer)
         }
         if (Row > 48) {
            Row = 1;
-           ZeroMem(Convert, sizeof(Convert));
-           UnicodeSPrint(Convert, sizeof(Convert), L"\n                 %08x: ", Offset);
-           StrCatS(TextBuffer, 40960, Convert);
         }
     }
 
@@ -103,6 +100,7 @@ PrintSHA1(TCG_DIGEST Digest, CHAR16 *TextBuffer)
     CHAR16 Convert[256];
     ZeroMem(Convert, sizeof(Convert));
     UnicodeSPrint(Convert, sizeof(Convert), L"    SHA1 Digest: " );
+    StrCatS(TextBuffer, 40960, Convert);
 
     for (int j = 0; j < SHA1_DIGEST_SIZE; j++ ) {
         ZeroMem(Convert, sizeof(Convert));
