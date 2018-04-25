@@ -146,13 +146,14 @@ def start_sqlite(session_key):
     with open('Event.log', 'r') as f:
         for line in f.readlines():
             tag, value = event_process(line)
+            if tag == 0: pass
             if tag == 1: index    = value; i += 1
             if tag == 2: category = value; i += 1
             if tag == 3: digest   = value; i += 1
             if tag == 4: size     = value; i += 1
-            if i % 4 == 0:
-                i = 0
+            if  value !=0 and i % 4 == 0:
                 eventItem.append([index, category, digest, size])
+                i = 0
             else: pass
     print pcrItem, '\n\n', eventItem
     update_db(pcrItem, eventItem, session_key)
@@ -160,7 +161,7 @@ def start_sqlite(session_key):
 
 def event_process(line):
     line = line.encode('utf-8')
-    tag, value = 3, line
+    tag, value = 0, 0
     if "Index" in line: tag, value = 1, re.search(r'(\d)', line).group(1)
     if "Type"  in line: tag, value = 2, re.search(r':(.*)', line).group(1)
     if "SHA1"  in line: tag, value = 3, re.search(r':(.*)', line).group(1)

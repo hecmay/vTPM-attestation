@@ -10,7 +10,7 @@
 #include <Protocol/TcgService.h>
 #include <IndustryStandard/UefiTcgPlatform.h>
 
-#define NO_RANDOM_BYTES 32 
+#define NO_RANDOM_BYTES 24 
 
 #pragma pack(1)
 typedef struct {
