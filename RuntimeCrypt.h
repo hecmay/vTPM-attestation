@@ -19,9 +19,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include "BaseCryptLib.h"
 
-///
-/// Runtime Cryptographic Protocol GUID.
-///
+//
+// Runtime Cryptographic Protocol GUID.
+//
 #define EFI_RUNTIME_CRYPT_PROTOCOL_GUID \
   { \
     0xe1475e0c, 0x1746, 0x4802, { 0x86, 0x2e, 0x1, 0x1c, 0x2c, 0x2d, 0x9d, 0x86 } \
@@ -185,9 +185,9 @@ BOOLEAN
   IN  UINTN        SigLength
   );
 
-///
-/// Runtime Cryptographic Protocol Structure.
-///
+//
+// Runtime Cryptographic Protocol Structure.
+//
 typedef struct {
   EFI_RUNTIME_CRYPT_SHA256_GET_CONTEXT_SIZE  Sha256GetContextSize;
   EFI_RUNTIME_CRYPT_SHA256_INIT              Sha256Init;
