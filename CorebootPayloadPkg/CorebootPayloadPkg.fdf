@@ -176,9 +176,13 @@ INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
 INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
 
 !ifdef $(CSM_ENABLE)
-INF  IntelFrameworkModulePkg/Csm/BiosThunk/VideoDxe/VideoDxe.inf
+# INF  IntelFrameworkModulePkg/Csm/BiosThunk/VideoDxe/VideoDxe.inf
 INF  IntelFrameworkModulePkg/Csm/LegacyBiosDxe/LegacyBiosDxe.inf
-INF  RuleOverride=CSM CorebootPayloadPkg/Csm/Csm16.inf
+!if $(ARCH) == IA32
+INF  RuleOverride=CSM USE = IA32 CorebootPayloadPkg/Csm/Csm16.inf
+!else
+INF  RuleOverride=CSM USE = X64 CorebootPayloadPkg/Csm/Csm16.inf
+!endif
 !endif
 
 #

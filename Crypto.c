@@ -9,6 +9,11 @@
 #include <Protocol/RuntimeCrypt.h>
 #include <Library/UefiBootServicesTableLib.h>
 
+
+#include <openssl/bn.h>
+#include <openssl/rsa.h>
+#include <openssl/err.h>
+
 //
 // Max Known Digest Size is SHA512 Output (64 bytes) by far
 //
@@ -263,8 +268,47 @@ AesDecryptoData (
   OUT  UINT8   *DecryptData
   )
 {
+  VOID       *AesCtx;
+  BOOLEAN    Result;
   EFI_STATUS Status = EFI_SUCCESS;
+
+  Result = AesInit(AesCtx, AesCbcKey, 128);
+  if (!Result) {
+    Print (L"[Fail] AesCtx for Decryption Init\n");
+    return EFI_ABORTED;
+  }
+
+  Result = AesCbcDecrypt (AesCtx, 
+                          (UINT8*)RecvBuffer, 
+                          AsciiStrLen(RecvBuffer), 
+                          Aes128CbcIvec, 
+                          DecryptData);
+  if (!Result) {
+    Print (L"[Fail] Aes Decyption Failed\n");
+    return EFI_ABORTED;
+  }
+
+  Print(L"[Info] Data decrypted by Aes in Hex\n");  
+  for (int Tag = 0; Tag < sizeof(DecryptData); Tag++) {
+    Print(L"%02x ", DecryptData[Tag]);
+  }
 
   return Status;
 }
 
+
+//
+// Rsa Encryption Implementation Wrapper with OpenSSL
+//
+EFI_STATUS
+RsaEncryptoData (
+  IN   VOID    *RsaPubKey,
+  IN   CHAR8   *DataBuffer,
+  OUT  UINT8   *EncryptData
+  )
+{
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  return Status;
+  
+}
