@@ -132,32 +132,37 @@ def verify_record():
     latest = session.query(func.max(PcrRecord.id)).scalar();
     print "[INFO] The latest record Id:", latest
 
-    current, last = [], []
-    curr_event, last_event = [], []
-    for instance in session.query(PcrRecord).filter(PcrRecord.id == latest).all():
-      for index in range(7):
-        current.append(eval("instance.pcr" + str(index)))
-    for event in instance.event:
-      curr_event.append([event.number, 
-                         event.eventType,
-                         event.eventDetails,
-                         event.eventSize])
+    if latest > 1:
+      current, last = [], []
+      curr_event, last_event = [], []
+      for instance in session.query(PcrRecord).filter(PcrRecord.id == latest).all():
+        for index in range(7):
+          current.append(eval("instance.pcr" + str(index)))
+      for event in instance.event:
+        curr_event.append([event.number, 
+                           event.eventType,
+                           event.eventDetails,
+                           event.eventSize])
 
-    for instance in session.query(PcrRecord).filter(PcrRecord.id == latest - 1).all():
-      for index in range(7):
-        last.append(eval("instance.pcr" + str(index)))
-    for event in instance.event:
-      last_event.append([event.number, 
-                         event.eventType,
-                         event.eventDetails,
-                         event.eventSize])
+      for instance in session.query(PcrRecord).filter(PcrRecord.id == latest - 1).all():
+        for index in range(7):
+          last.append(eval("instance.pcr" + str(index)))
+      for event in instance.event:
+        last_event.append([event.number, 
+                           event.eventType,
+                           event.eventDetails,
+                           event.eventSize])
     
-    if current == last: 
-      print "[INFO] Status Safe"
+      if current == last: 
+        print "[INFO] Status Safe"
+        return "Safe"
+      else: 
+        print "[INFO] Status UnSafe"
+        return "Unsafe"
+
+    else:
+      print "[INFO] First time startup. Set as Safe defaultly\n"
       return "Safe"
-    else: 
-      print "[INFO] Status UnSafe"
-      return "Unsafe"
 
 # start pasring and save the uploaded TFTP data
 def start_sqlite(session_key):
@@ -244,7 +249,9 @@ def msg_processing(data, session_key):
             premaster_key = re.search(r'(-*\d+)', data).group(0)
             random_num.append(int(premaster_key))
             print "[INFO] Get Pre-Master Key from the client: ", premaster_key, "\n"
-            return "Done", "Done"
+            temp_encrypt = AES_ENCRYPT(get_session_key(random_num))  
+            temp = temp_encrypt.encrypt("Done")
+            return "Done", temp + "+"
         else:
             return "None", "None"
 
@@ -299,12 +306,10 @@ server_thread = start_server('server_line', 5)
 server_thread.start()
 
 server_thread.join()
-Msg = ("Safe" if (status == False) else "Warning")  
-print "Verification Completed: Status ", Msg
+Msg = ("Safe" if (status == "Safe") else "Warning")  
+print "[INFO] Verification Completed: Status ", Msg
 
-
-if __name__ == '__main__':
-    drop_db()
-    init_db()
-    start_sqlite('cdbusi')
-    verify_record()
+# drop_db()
+# init_db()
+# start_sqlite('cdbusi')
+# verify_record()

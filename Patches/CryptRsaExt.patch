@@ -1,0 +1,42 @@
+diff --git a/CryptoPkg/Library/BaseCryptLib/Pk/CryptRsaExt.c b/CryptoPkg/Library/BaseCryptLib/Pk/CryptRsaExt.c
+index ca32b1e..792d86f 100644
+--- a/CryptoPkg/Library/BaseCryptLib/Pk/CryptRsaExt.c
++++ b/CryptoPkg/Library/BaseCryptLib/Pk/CryptRsaExt.c
+@@ -360,3 +360,37 @@ RsaPkcs1Sign (
+                      (RSA *) RsaContext
+                      );
+ }
++
++
++
++BOOLEAN
++EFIAPI
++RsaEncrypt (
++  IN      VOID         *RsaContext,
++  IN      CONST CHAR8  *Message,
++  IN      INT32        MsgLenth,
++  OUT     UINT8        *OutEncode
++  )
++{
++  int RetVal;
++
++  if (RsaContext == NULL) {
++    RetVal = FALSE;
++    return RetVal;
++  }
++
++  if (RSA_public_encrypt(MsgLenth, 
++                         (UINT8*)Message, 
++                         (UINT8*)OutEncode, 
++                         (RSA*)RsaContext, 
++                         RSA_PKCS1_PADDING) < 0) {
++    RetVal = FALSE;
++    return RetVal;
++  }
++  
++  RSA_free(RsaContext);
++  RetVal = TRUE;
++  return RetVal;
++
++}
++

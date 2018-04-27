@@ -8,11 +8,7 @@
 #include <stdlib.h>
 #include <Protocol/RuntimeCrypt.h>
 #include <Library/UefiBootServicesTableLib.h>
-
-
-#include <openssl/bn.h>
-#include <openssl/rsa.h>
-#include <openssl/err.h>
+#include <Library/BaseCryptLib.h>
 
 //
 // Max Known Digest Size is SHA512 Output (64 bytes) by far
@@ -263,14 +259,22 @@ AesCryptoData (
 
 EFI_STATUS
 AesDecryptoData (
-  IN   UINTN   Nounce,
+  IN   UINT64  Nounce,
   IN   CHAR8   *RecvBuffer,
   OUT  UINT8   *DecryptData
   )
 {
-  VOID       *AesCtx;
-  BOOLEAN    Result;
-  EFI_STATUS Status = EFI_SUCCESS;
+  VOID        *AesCtx;
+  BOOLEAN     Result;
+  UINT8       AesCbcKey[16];
+  EFI_STATUS  Status = EFI_SUCCESS;
+
+  AesCtx = AllocatePool (1024);
+  Status = GenerateRsaCbcKey ( Nounce, AesCbcKey ); 
+  if (EFI_ERROR(Status)){
+    Print(L"[Fail] Get AesCbcKey for Decryption Failed: %d\n", Status);
+    return Status;
+  }
 
   Result = AesInit(AesCtx, AesCbcKey, 128);
   if (!Result) {
@@ -278,18 +282,29 @@ AesDecryptoData (
     return EFI_ABORTED;
   }
 
+  //
+  // Clean the Received Data (The last character is +)
+  //
+  CHAR8  Clean[64];
+  CHAR8  *LenEnd = AsciiStrStr(RecvBuffer, (CHAR8*)"+");
+  UINTN  Len = LenEnd - RecvBuffer;
+  Print(L"[Debug] The Read-in Len is : %d\n", Len);
+  AsciiStrnCpyS(Clean, 1280, RecvBuffer, Len);
+
   Result = AesCbcDecrypt (AesCtx, 
-                          (UINT8*)RecvBuffer, 
-                          AsciiStrLen(RecvBuffer), 
+                          (UINT8*)Clean, 
+                          AsciiStrLen(Clean), 
                           Aes128CbcIvec, 
                           DecryptData);
   if (!Result) {
-    Print (L"[Fail] Aes Decyption Failed\n");
+    CHAR16 PrintBuffer[64];
+    AsciiToUnicodeSize(RecvBuffer, 128, PrintBuffer);
+    Print (L"[Fail] Aes Decyption Failed for %s\n", PrintBuffer);
     return EFI_ABORTED;
   }
 
-  Print(L"[Info] Data decrypted by Aes in Hex\n");  
-  for (int Tag = 0; Tag < sizeof(DecryptData); Tag++) {
+  Print(L"[Info] Data Decrypted by Aes in Hex\n");  
+  for (int Tag = 0; Tag < 64; Tag++) {
     Print(L"%02x ", DecryptData[Tag]);
   }
 
@@ -302,13 +317,57 @@ AesDecryptoData (
 //
 EFI_STATUS
 RsaEncryptoData (
-  IN   VOID    *RsaPubKey,
+  IN   VOID    *RsaCtx,
   IN   CHAR8   *DataBuffer,
   OUT  UINT8   *EncryptData
   )
 {
-  EFI_STATUS Status = EFI_SUCCESS;
-
-  return Status;
+  UINTN       KeySize;
+  UINT8       *ExponentKey;
+  UINT8       *ModulusKey;
+  EFI_STATUS  Status;
   
+  //
+  // Assert RsaCtx != NULL 
+  //
+  if (RsaCtx == NULL) {
+    Print(L"[Fail] Cannot Generate Rsa Ctx...\n");
+  }
+
+  //
+  // Retrieve the Tag-designated Rsa key N/E from established RsaCtx
+  //
+  KeySize = 0;
+  Status = RsaGetKey(RsaCtx, RsaKeyN, NULL, &KeySize);
+  if (!Status || KeySize !=0) {
+    Print(L"[Fail] Cannot Retrieve N Key from RSaCtx\n");
+  }
+
+  ExponentKey = AllocatePool (KeySize);
+  Status = RsaGetKey(RsaCtx, RsaKeyN, ExponentKey, &KeySize);
+  if (!Status || KeySize !=0) {
+    Print(L"[Fail] Cannot Retrieve RsaKeyN Buffer from RSaCtx\n");
+  }
+
+  KeySize = 0;
+  Status = RsaGetKey(RsaCtx, RsaKeyE, NULL, &KeySize);
+  if (!Status || KeySize !=0) {
+    Print(L"[Fail] Cannot Retrieve E Key from RSaCtx\n");
+  }
+
+  ModulusKey = AllocatePool(KeySize);
+  Status = RsaGetKey(RsaCtx, RsaKeyE, ModulusKey, &KeySize);
+  if (!Status || KeySize !=0) {
+    Print(L"[Fail] Cannot Retrieve RsaKeyE Buffer from RSaCtx\n");
+  }
+  
+  //
+  // Check Invalid RsaKey Components
+  //
+  if (!RsaCheckKey (RsaCtx)) {
+    Print(L"[Fail] RsaKey Components Invalid\n");
+    return EFI_ABORTED;
+  }
+  return Status;
+
 }

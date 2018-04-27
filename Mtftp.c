@@ -27,9 +27,9 @@ STATIC CONST CHAR16 mTftpProgressFrame[] = L"[                                  
 //
 // Manual Configuration for Mtftp Client
 //
-CONST UINT32 ClientAddr  = IPV4(192,168,199,100);
+CONST UINT32 ClientAddr  = IPV4(192,168,3,103);
 CONST UINT32 SubMask     = IPV4(255,255,255,0);
-CONST UINT32 GateWayAddr = IPV4(192,168,199,1);
+CONST UINT32 GateWayAddr = IPV4(192,168,3,1);
 
 typedef struct {
   UINTN  FileSize;

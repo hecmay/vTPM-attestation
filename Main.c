@@ -13,13 +13,18 @@
 //
 // FTP/MTFTP Server IPv4 Address
 //
-CONST UINT32 ServerAddr = IPV4(192,168,199,229);
+CONST UINT32 ServerAddr = IPV4(192,168,3,99);
 
 //
 // The nounce required for session key
 //
 UINT32 Nounce1, Nounce3;
 UINTN  Nounce2, Nounce;
+
+//
+// Rsa PubKey from the X509 Cert
+//
+VOID *RsaPubKey;
 
 //
 // Retrieve PubKey from Der-Coded X509 Cert
@@ -30,14 +35,14 @@ RetrieveCertPk(
   IN INT32 MtftpId 
 )
 {
-  EFI_STATUS  Status;
-  CHAR8       *Cert = (CHAR8*)"cert.der";
-  CHAR16      *CertPath = (CHAR16*)L"cert.der";
-  VOID        *RsaPubKey;
-  VOID        *Data;
-  UINTN       CertSize = 0;
-  UINTN       BlockSize = 512;
-  BOOLEAN     Result = FALSE;
+  EFI_STATUS   Status;
+  CHAR8        *Cert = (CHAR8*)"cert.der";
+  CHAR16       *CertPath = (CHAR16*)L"cert.der";
+  VOID extern  *RsaPubKey;
+  VOID         *Data;
+  UINTN        CertSize = 0;
+  UINTN        BlockSize = 512;
+  BOOLEAN      Result = FALSE;
 
   //
   // Get File Info of DER-coded X509 Cert from server
@@ -195,9 +200,19 @@ RecvMsgProcessing(
     Status = Write(MtftpId, (UINT8*)"EncryptPcr.log", ConvertData, 8192);
     
     //
-    // Hash the data and encrypt the diegst with Rsa PubKey for ServerSide Auth
+    // Test: Hash the data and encrypt the diegst with Rsa PubKey for ServerSide Auth
     //
-    
+    BOOLEAN      Result;
+    VOID extern  *RsaPubKey;
+    UINT8        Encode[64];
+    Result = RsaEncrypt(RsaPubKey, (CHAR8*)"Test", AsciiStrLen("Test"), Encode);
+    if (!Result) {
+      Print(L"[Fail] RSA Encryption Failed\n");
+    } else {
+      for (int i = 0; i < sizeof(Encode); i++) {
+        Print(L"%02x ", Encode[i]);
+      }
+    }
     
     //
     // To send the Event Log

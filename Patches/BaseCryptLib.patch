@@ -1,0 +1,20 @@
+diff --git a/CryptoPkg/Include/Library/BaseCryptLib.h b/CryptoPkg/Include/Library/BaseCryptLib.h
+index 027ea09..5923277 100644
+--- a/CryptoPkg/Include/Library/BaseCryptLib.h
++++ b/CryptoPkg/Include/Library/BaseCryptLib.h
+@@ -2873,4 +2873,15 @@ RandomBytes (
+   IN   UINTN  Size
+   );
+ 
++
++BOOLEAN
++EFIAPI
++RsaEncrypt (
++  IN      VOID         *RsaContext,
++  IN      CONST CHAR8  *Message,
++  IN      INT32        MsgLenth,
++  OUT     UINT8        *OutEncode
++  );
++
++
+ #endif // __BASE_CRYPT_LIB_H__
