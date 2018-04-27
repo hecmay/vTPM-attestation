@@ -1,0 +1,63 @@
+## @file
+#  This driver installs runtime fTPM protocol to provide fundamental TPM 1.2 functionality.
+#
+#  Composed by : Shaojie Xiang, Siemens Corporation Research. All rights reserved.
+#  Email       : sx233@cornell.edu
+#  Date        : 2018-04-14
+# 
+#  Please add this DXE_RUNTIME_DRIVER into the components of SecurityPkg
+#  The denpendent libraries required by the fTpmRuntimeProtocol has been explicitly 
+#  defined in SecurityPkg.dec. Add
+#
+#  [Protocols]
+#    ## Include/Protocol/RuntimefTpm.h
+#    gEfiRuntimefTpmProtocolGuid = { 0xfe81b920, 0x5ae7, 0x4457, {0xba, 0x99, 0x68, 0x32, 0x8d, 0xba, 0x2f, 0x2c }} 
+# 
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = VTpmDxe
+  MODULE_UNI_FILE                = VTpmDxe.uni
+  FILE_GUID                      = e44b5f79-26ea-42ed-8e0f-9bb0cdb000e7
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = VTpmDxeDriverInitialize
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF
+#
+
+[Sources]
+  VTpmDxe.h
+  VTpmDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  CryptoPkg/CryptoPkg.dec
+  SecurityPkg/SecurityPkg.dec 
+
+[LibraryClasses]
+  UefiLib
+  BaseLib
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  DebugLib
+  UefiRuntimeLib
+  BaseCryptLib
+  DevicePathLib
+  TpmMeasurementLib
+  
+
+[Protocols]
+  gEfiDevicePathProtocolGuid         ## CONSUMES
+  gEfiDxeVTpmProtocolGuid            ## PRODUCES
+
+[Depex]
+  TRUE
+
+[UserExtensions.TianoCore."ExtraFiles"]
+  VTpmDxeExtra.uni
+  

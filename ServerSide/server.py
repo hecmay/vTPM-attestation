@@ -116,10 +116,9 @@ class start_tftp(threading.Thread):
         self.name = name
         self.reset = reset
     def run(self):
-        ip_port = ('',69)
-        buffer_size = 512
-        web = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #web.settimeout(CHECK_TIMEOUT)
+        import tftpy
+        server = tftpy.TftpServer('/tftpboot')
+        server.listen('0.0.0.0', 69)
 
 '''Example of Event Log:
      Event PCR Index: 5
@@ -127,10 +126,38 @@ class start_tftp(threading.Thread):
      SHA1 Digest: B6AE9742D3936A4291CFED8DF775BC4657E368C0
      Event Size: 47'''
 
+# To be improved with gensim and bitmap comparison
 def verify_record():
-    # Assume Safe in Default
-    result = "Safe" 
-    return result 
+    from sqlalchemy.sql import func
+    latest = session.query(func.max(PcrRecord.id)).scalar();
+    print "[INFO] The latest record Id:", latest
+
+    current, last = [], []
+    curr_event, last_event = [], []
+    for instance in session.query(PcrRecord).filter(PcrRecord.id == latest).all():
+      for index in range(7):
+        current.append(eval("instance.pcr" + str(index)))
+    for event in instance.event:
+      curr_event.append([event.number, 
+                         event.eventType,
+                         event.eventDetails,
+                         event.eventSize])
+
+    for instance in session.query(PcrRecord).filter(PcrRecord.id == latest - 1).all():
+      for index in range(7):
+        last.append(eval("instance.pcr" + str(index)))
+    for event in instance.event:
+      last_event.append([event.number, 
+                         event.eventType,
+                         event.eventDetails,
+                         event.eventSize])
+    
+    if current == last: 
+      print "[INFO] Status Safe"
+      return "Safe"
+    else: 
+      print "[INFO] Status UnSafe"
+      return "Unsafe"
 
 # start pasring and save the uploaded TFTP data
 def start_sqlite(session_key):
@@ -275,6 +302,9 @@ server_thread.join()
 Msg = ("Safe" if (status == False) else "Warning")  
 print "Verification Completed: Status ", Msg
 
-# drop_db()
-# init_db()
-# start_sqlite('cdbusi')
+
+if __name__ == '__main__':
+    drop_db()
+    init_db()
+    start_sqlite('cdbusi')
+    verify_record()
