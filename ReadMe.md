@@ -27,5 +27,5 @@ For details please refer to the followed links:
 * [Secure Boot in OVMF and vTPM Configuration](https://www.jianshu.com/p/79f08434bbf0)
 * [OVMF Serial port Debugging on QEMU](https://www.jianshu.com/p/7baa7c1db17f)
 
-After setting up the network parameter and building OvmfPkg into OVMF.fd, launch `ServerSide/server.py` on a server in the same LAN, as well as the Ovmf firmware (with attestation framework client component built in) in QEMU with `Utility/boot.sh` using `source boot.sh start`.  
+After setting up the local area network parameter and building OvmfPkg into OVMF.fd, launch `ServerSide/server.py` on a server in the same LAN, as well as the Ovmf firmware (with attestation framework client component built in) in QEMU with `Utility/boot.sh` using `source boot.sh start`.  
 
