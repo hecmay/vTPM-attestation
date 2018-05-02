@@ -289,7 +289,7 @@ AesDecryptoData (
   CHAR8  *LenEnd = AsciiStrStr(RecvBuffer, (CHAR8*)"+");
   UINTN  Len = LenEnd - RecvBuffer;
   Print(L"[Debug] The Read-in Len is : %d\n", Len);
-  AsciiStrnCpyS(Clean, 1280, RecvBuffer, Len);
+  AsciiStrnCpyS(Clean, 128, RecvBuffer, Len);
 
   Result = AesCbcDecrypt (AesCtx, 
                           (UINT8*)Clean, 
