@@ -10,6 +10,12 @@
 #include <Mtftp.h>
 #include <Main.h>
 
+
+//
+// Define the Exchange Mode of Pre-Msater Key (RSA or DH)
+//
+#define RSA
+
 //
 // FTP/MTFTP Server IPv4 Address
 //
@@ -22,9 +28,9 @@ UINT32 Nounce1, Nounce3;
 UINTN  Nounce2, Nounce;
 
 //
-// Rsa PubKey from the X509 Cert
+// Rsa Ctx from the X509 Cert
 //
-VOID *RsaPubKey;
+VOID *RsaCtx;
 
 //
 // Retrieve PubKey from Der-Coded X509 Cert
@@ -36,9 +42,9 @@ RetrieveCertPk(
 )
 {
   EFI_STATUS   Status;
-  CHAR8        *Cert = (CHAR8*)"cert.der";
-  CHAR16       *CertPath = (CHAR16*)L"cert.der";
-  VOID extern  *RsaPubKey;
+  CHAR8        *Cert = (CHAR8*)"crypt_cert.der";
+  CHAR16       *CertPath = (CHAR16*)L"crypt_cert.der";
+  VOID extern  *RsaCtx;
   VOID         *Data;
   UINTN        CertSize = 0;
   UINTN        BlockSize = 512;
@@ -48,7 +54,7 @@ RetrieveCertPk(
   // Get File Info of DER-coded X509 Cert from server
   //
   Status = GetFileSize(MtftpId, Cert, &CertSize);
-  if(EFI_ERROR(Status)) CertSize = 997;
+  if(EFI_ERROR(Status)) CertSize = 588;
   
   //
   // DownLoad Cert File To Buffer and Dump into File specified by CertPath
@@ -59,8 +65,8 @@ RetrieveCertPk(
   //
   // Read Cert Content and Retrieve Pk
   //
-  RsaPubKey = NULL;
-  Result = RsaGetPublicKeyFromX509((UINT8*)Data, CertSize, &RsaPubKey); 
+  RsaCtx = NULL;
+  Result = RsaGetPublicKeyFromX509((UINT8*)Data, CertSize, &RsaCtx); 
   if (Result) {
       Print(L"[Success] RSA Public Key Retrieved Successfully\n");
       //Status = X509VerifyCert ((UINT8*)Data, CertSize, TestCACert, sizeof (TestCACert));
@@ -87,6 +93,9 @@ RecvMsgProcessing(
   UINT8         DecryptData[1024];
   UINTN extern  Nounce;    
   CHAR16        PrintBuffer[1024]; 
+
+  RandomSeed (NULL, 0);
+
   //
   // Case 1: server response from client hello msg
   //
@@ -103,7 +112,7 @@ RecvMsgProcessing(
     CHAR8          *MtftpBuf = (CHAR8*) malloc(4096);
     UINT8          *Path = (UINT8*)"cert.pem";
     CHAR8          *Pointer = AsciiStrStr(RecvBuffer, ":") + 2;
-
+    
     Nounce2 = AsciiStrDecimalToUintn(Pointer);
     Print(L"[Info] The Second Nounce from Server: %d\n", Nounce2);
 
@@ -114,11 +123,119 @@ RecvMsgProcessing(
     }
 
     //
-    // Send Pre Master Key after authticating server identification
+    // Get and Encrypt Pre Master Key after authticating server identification
     //
     Status = GetRandom(&Nounce3);
     AsciiSPrint(HelloMsg, sizeof(HelloMsg), "Pre Master: %d", Nounce3); 
-    Status = Send(SocketId, HelloMsg, sizeof(HelloMsg)+3);
+    //Status = Send(SocketId, HelloMsg, sizeof(HelloMsg)+3);
+
+    #ifdef RSA
+        //
+        // Test: Hash the data and encrypt the diegst with Rsa PubKey for ServerSide Auth
+        //
+        BOOLEAN      Result;
+        VOID extern  *RsaCtx;
+        UINT8        Encode[512];
+        CHAR8        MasterKey[64];
+        CHAR8        RsaMsg[512];
+        CHAR16       PrintBuffer[128];
+
+        ZeroMem(Encode, sizeof(Encode));
+	ZeroMem(MasterKey, sizeof(MasterKey));
+        ZeroMem(PrintBuffer, sizeof(PrintBuffer));
+        ZeroMem(RsaMsg, sizeof(RsaMsg));
+
+        AsciiSPrint(MasterKey, 128, "MasterKey: %d", Nounce3);
+        Result = RsaEncrypt(RsaCtx, MasterKey, AsciiStrLen(MasterKey), Encode);
+        if (!Result) {
+          Print(L"[Fail] RSA Encryption Failed\n");
+        } else {
+          Print(L"\n[Debug] RSA Encryption Result:\n");
+          for (int i = 0; i < sizeof(Encode); i++) {
+            Print(L"%02x ", Encode[i]);
+          }
+          Print(L"\n");
+
+          AsciiSPrint(RsaMsg, 512, "==rsa==");
+          UintToCharSize(Encode, 512, RsaMsg);
+          AsciiToUnicodeSize(RsaMsg, 128, PrintBuffer); 
+          Print(L"[Denug] The RsaMsg: %s\n", PrintBuffer);
+          Status = Send(SocketId, RsaMsg, sizeof(RsaMsg)+2);
+        }
+    #else
+        //
+        // Parameter for DH Pre-Matser Key Exchange
+        //
+        VOID           *DhCtx;
+        UINT8          Prime[64];
+        UINT8          PublicKey1[64];
+        UINT8          PublicKey2[64];
+        UINTN          PublicKey1Length;
+        UINTN          PublicKey2Length;
+        UINT8          Key1[64];
+        UINTN          Key1Length; 
+        CHAR8          DhMsg[64];
+        BOOLEAN        Result;
+
+        //
+        // Diffile-Hellman Key Exchange Configuration with g = 7 and bit(p) = 64
+        //
+        PublicKey1Length = sizeof(PublicKey1);
+        PublicKey2Length = sizeof(PublicKey2);
+        Key1Length = sizeof(Key1);
+        ZeroMem(DhMsg, sizeof(DhMsg));
+
+        DhCtx = DhNew();
+        if (DhCtx == NULL) {
+            Print(L"[Fail] Dh Ctx Init Failed\n");
+            return EFI_ABORTED;
+        }
+
+        Result = DhGenerateParameter (DhCtx, 7, 64, Prime);
+        if (!Result) {
+            Print(L"[Fail] Dh Set Parameter Failed\n");
+            return EFI_ABORTED;
+        }
+
+        Result = DhGenerateKey (DhCtx, PublicKey1, &PublicKey1Length);
+        if (!Result) {
+            Print(L"[Fail] Dh Generate Key Failed\n");
+            return EFI_ABORTED;
+        }
+
+        Print(L"[debug] The Public Key 1: %d\n", PublicKey1);
+
+        //
+        // One more loop to exchange Dh publickey and generate pre-master key
+        //
+        AsciiSPrint(DhMsg, 128, "Dh Pubkey1: %d", PublickKey1);
+        Status = Send(SocketId, DhMsg, AsciiStrLen(DhMsg)+2);
+        ZeroMem(RecvBuffer, sizeof(RecvBuffer));
+        Status = Recv(WebSocket, RecvBuffer, 1024);
+
+        CHAR8  Clean[64];
+        CHAR8  *LenEnd = AsciiStrStr(RecvBuffer, (CHAR8*)"+");
+        UINTN  Len = LenEnd - RecvBuffer;
+        Print(L"[Debug] The Read-in Len is : %d\n", Len);
+        AsciiStrnCpyS(Clean, 128, RecvBuffer, Len);
+
+        //
+        // Compute Dh Key (x)^Y mod p with the publickey2 received
+        //
+        Status = AsciiStrDecimalToUintnS(Clean, NULL, PublickKey2);  
+        if (!Status) {
+          Print(L"[Fail] Fail to Receive PublicKey2 from Server\n");
+          return EFI_ABORTED;
+        }
+    
+        Status = DhComputeKey (DhCtx, PublicKey2, PublicKey2Length, Key1, &Key1Length);
+        if (!Status) {
+          Print(L"[Fail] Fail to Compute Dh Key\n");
+          return EFI_ABORTED;
+        }
+        Print(L"[Debug] The Dh Key generated: %d\n" Key1);
+
+    #endif
 
     //
     // Generate Session Key using Nounce[0:3]
@@ -147,7 +264,7 @@ RecvMsgProcessing(
   }
   
   //
-  // Case2: decrypt data using Aes-128 with session key and tak actions
+  // Case2: decrypt data using Aes-128 with session key and take actions
   //
   else if (!EFI_ERROR(Status = AesDecryptoData(Nounce, RecvBuffer, DecryptData))){
 
@@ -198,21 +315,6 @@ RecvMsgProcessing(
     AesCryptoData(Nounce, EncryptoData, Record, sizeof(Record));
     UintToCharSize(Record, 8192, ConvertData); 
     Status = Write(MtftpId, (UINT8*)"EncryptPcr.log", ConvertData, 8192);
-    
-    //
-    // Test: Hash the data and encrypt the diegst with Rsa PubKey for ServerSide Auth
-    //
-    BOOLEAN      Result;
-    VOID extern  *RsaPubKey;
-    UINT8        Encode[64];
-    Result = RsaEncrypt(RsaPubKey, (CHAR8*)"Test", AsciiStrLen("Test"), Encode);
-    if (!Result) {
-      Print(L"[Fail] RSA Encryption Failed\n");
-    } else {
-      for (int i = 0; i < sizeof(Encode); i++) {
-        Print(L"%02x ", Encode[i]);
-      }
-    }
     
     //
     // To send the Event Log

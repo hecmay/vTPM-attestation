@@ -1,10 +1,12 @@
 #! /usr/bin/env python
 #i -*- coding:utf-8 -*-
+import os
 import re
 import socket
 import threading
 import time
 from verify import *
+from os.path import join
 from time import ctime
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer, Unicode, PickleType, ForeignKey
@@ -166,7 +168,6 @@ def verify_record():
 
 # start pasring and save the uploaded TFTP data
 def start_sqlite(session_key):
-    import os
     os.system("tr -d '\\000' < /tftpboot/PcrValue.log > PcrValue.log")
     os.system("tr -d '\\000' < /tftpboot/Event.log > Event.log")
     pcrItem, eventItem = [], []
@@ -252,6 +253,20 @@ def msg_processing(data, session_key):
             temp_encrypt = AES_ENCRYPT(get_session_key(random_num))  
             temp = temp_encrypt.encrypt("Done")
             return "Done", temp + "+"
+        elif data.find("rsa==") >= 0: 
+            from base64 import b64encode
+            rsa_text = re.search(r'rsa==(\w+)', data).group(1)
+            print "[Debug] RSA Text from Client: ", rsa_text
+            private_key = prvkey_from_pem("crypt_key.pem") 
+            premaster_text = rsa_decryption(base64.b64encode(a2b_hex(rsa_text)), private_key)
+            print "[Debug] Decrypted RSA data: ", premaster_text
+
+            premaster_key = re.search(r'(-*\d+)', premaster_text).group(0)
+            random_num.append(int(premaster_key))
+            print "[INFO] Get Pre-Master Key from the client: ", premaster_key, "\n"
+            temp_encrypt = AES_ENCRYPT(get_session_key(random_num))  
+            temp = temp_encrypt.encrypt("Done")
+            return "Done", temp + "+"
         else:
             return "None", "None"
 
@@ -294,11 +309,25 @@ def clean_data(data):
     else: clean = clean[:-1]
     return clean
 
+
 def dump_data(data, filename):
     with open(filename, 'w') as f:
         f.write(data)
         f.close()
     
+
+def tftp_cert_prepare(cert_dir):
+    # create prv/pub key and cert is not existent
+    create_self_signed_cert(cert_dir)
+   
+    # enable tftp and check status
+    tftp_thread = tftp_server("tftp_server", 5)
+    tftp_thread.start() 
+
+    path = join(cert_dir, "crypt_cert.der")
+    os.system("cp -f " + path + " /tftpboot/")
+    os.system("chmod 777 /tftpboot/crypt_cert.der")
+
 
 threadLock = threading.Lock()
 threads = []

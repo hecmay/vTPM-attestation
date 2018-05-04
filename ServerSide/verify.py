@@ -8,8 +8,10 @@
 import re
 import ssl
 import time
+import datetime
 import base64
 import binascii
+from os.path import exists, join
 from binascii import a2b_base64, b2a_hex, a2b_hex
 from Crypto.Random import random
 from Crypto import Random
@@ -39,9 +41,6 @@ class AES_ENCRYPT(object):
         plain_text = cryptor.decrypt(a2b_hex(text))
         return plain_text.rstrip('\0')
 
-def verify_record():
-    print "[INFO] Start Credential Verification...\n"
-    
 def random_number():
     return random.getrandbits(24)
 
@@ -80,7 +79,7 @@ def rsa_decryption(msg, private_key):
     text = cipher.decrypt(base64.b64decode(msg),random_generator)
     return text
 
-def rsa_sign(msg, pricate_key):
+def rsa_sign(msg, private_key):
     with open('master-private.pem') as f:
         key = f.read()
         rsakey = RSA.importKey(key)
@@ -99,7 +98,7 @@ def get_session_key(random_list):
     return a2b_hex(str(digest.hexdigest()[0:32]))
      
 '''
-    Retrieve the public key from a X509 Certificate. 
+    Retrieve the public key from a X509 Certificate in PEM format. 
     X509 is an Certificate Format defined by ANSI 
 '''
 def pubkey_from_x509(cert):
@@ -115,17 +114,145 @@ def pubkey_from_x509(cert):
     rsa_key = RSA.importKey(subjectPublicKeyInfo)
     return rsa_key
 
+'''
+    Retrive public key from cert in PEM format
+'''
+def prvkey_from_pem(cert):
+    with open(cert,"r") as f:
+         key = f.read()
+         prvkey = RSA.importKey(key) 
+    return prvkey 
+
+def extarct_components(cert):
+    # extract (n, e) components from der cert
+    from asn1crypto.x509 import Certificate
+    with open(cert, "rb") as f:
+        cert = Certificate.load(f.read())
+    
+    n = cert.public_key.native["public_key"]["modulus"]
+    e = cert.public_key.native["public_key"]["public_exponent"]
+    
+    print("{:#x}".format(n))    # prints the modulus (hexadecimal)
+    print("{:#x}".format(e))    # same, for the public exponent
+
+
 ''' Attempt to adopt the binarized bitmap 
-    to visualize the dataset in the sqlite'''
+    to visualize the dataset in the sqlite
+'''
+def record_to_bitmap():
+    pass
+
+
+''' Wrapper of OpenSSL crypto
+    Create X509 Cert in DER format and private Key
+'''
+def create_x509_cert(cert_dir):
+    if not exists(join(cert_dir, "prvkey.pem")):
+      from cryptography import x509
+      from cryptography.x509.oid import NameOID
+      from cryptography.hazmat.primitives import hashes
+      from cryptography.hazmat.backends import default_backend
+      from cryptography.hazmat.primitives import serialization
+      from cryptography.hazmat.primitives.asymmetric import rsa
+      # Generate private key
+      key = rsa.generate_private_key(
+          public_exponent=65537,
+          key_size=2048,
+          backend=default_backend()
+      )
+      # Write our key to disk for safe keeping
+      with open("prvkey.pem", "wb") as f:
+          f.write(key.private_bytes(
+              encoding=serialization.Encoding.PEM,
+              format=serialization.PrivateFormat.TraditionalOpenSSL,
+              encryption_algorithm=serialization.BestAvailableEncryption(b"password"),
+          ))
+      
+      # Various details about who we are. For a self-signed certificate the
+      # subject and issuer are always the same.
+      subject = issuer = x509.Name([
+          x509.NameAttribute(NameOID.COUNTRY_NAME, u"CN"),
+          x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"BJ"),
+          x509.NameAttribute(NameOID.LOCALITY_NAME, u"BJ"),
+          x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"Siemens"),
+          x509.NameAttribute(NameOID.COMMON_NAME, u"Siemens"),
+      ])
+      cert = x509.CertificateBuilder().subject_name(
+          subject
+      ).issuer_name(
+          issuer
+      ).public_key(
+          key.public_key()
+      ).serial_number(
+          x509.random_serial_number()
+      ).not_valid_before(
+          datetime.datetime.utcnow()
+      ).not_valid_after(
+          datetime.datetime.utcnow() + datetime.timedelta(days=365)
+      ).add_extension(
+          x509.SubjectAlternativeName([x509.DNSName(u"localhost")]),
+          critical=False,
+      ).sign(key, hashes.SHA256(), default_backend())
+      # Write our certificate out to disk.
+      with open("certificate.pem", "wb") as f:
+          f.write(cert.public_bytes(serialization.Encoding.PEM))
+      with open("certificate.der", "wb") as f:
+          f.write(cert.public_bytes(serialization.Encoding.DER))
+
+
+def create_self_signed_cert(cert_dir):
+    """
+    cert/key pair creation implementation using OpenSSL crypto lib.
+    If datacard.crt and  don't exist in cert_dir, create a new
+    self-signed cert and keypair and write them into that directory.
+    """
+    from OpenSSL import crypto
+    if not exists(join(cert_dir, "crypt_cert.der")) \
+	    or not exists(join(cert_dir, "crypt_key.pem")) \
+            or not exists(join(cert_dir, "crypt_pub.pem")):
+
+        # create a key pair
+        k = crypto.PKey()
+        k.generate_key(crypto.TYPE_RSA, 1024)
+
+        # create a self-signed cert
+        cert = crypto.X509()
+        cert.get_subject().C = "CN"
+        cert.get_subject().ST = "BJ"
+        cert.get_subject().L = "BJ"
+        cert.get_subject().O = "Siemens"
+        cert.get_subject().OU = "Corporation Technology"
+        cert.get_subject().CN = "Siemens"
+        cert.set_serial_number(1000)
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(10*365*24*60*60)
+        cert.set_issuer(cert.get_subject())
+        cert.set_pubkey(k)
+        cert.sign(k, 'sha1')
+
+        open(join(cert_dir, "crypt_cert.der"), "wt").write(
+            crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))
+        open(join(cert_dir, "crypt_cert.pem"), "wt").write(
+            crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+        open(join(cert_dir, "crypt_key.pem"), "wt").write(
+            crypto.dump_privatekey(crypto.FILETYPE_PEM, k))
+        open(join(cert_dir, "crypt_pub.pem"), "wt").write(
+            crypto.dump_publickey(crypto.FILETYPE_PEM, k))
 
 
 if __name__ == '__main__':
+    create_x509_cert(".")
+    create_self_signed_cert(".")
+
     plain = "123456woshixxx"
-    ppk = pubkey_from_x509("mycert.pem")
-    rsa_encryption(plain, ppk)
-    
-    encode = rsa_encryption(plain, ppk)
-    print encode, '\n' 
+    pubkey = prvkey_from_pem("crypt_pub.pem")
+    #ppk = pubkey_from_x509("crypt_cert.pem")
+    encode = rsa_encryption(plain, pubkey)
+    print "[Test] X509 pem encode: ", encode, '\n' 
+
+    prvkey = prvkey_from_pem("crypt_key.pem")
+    decode = rsa_decryption(encode, prvkey)
+    print "[Test] X509 pem decode", decode, '\n'
 
     digest = SHA256.new()
     digest.update(str(-729373007))
@@ -134,10 +261,6 @@ if __name__ == '__main__':
     hex_str = get_session_key([0,0,-729373007])
     aes_encrypt = AES_ENCRYPT(hex_str) 
     print "The session key[d]: %s", len(hex_str), hex_str
-    # print "Convert Str to HEx", hex(int(get_session_key([0,0,368137416]), 16))
-    # print "Convert HEx Str to binary: ", bin(int(hex_str, 16))[2:]
-    # print "Convert HEx Str to binary: ", a2b_hex(hex_str)
-    # print "The orginal hex_str len: ", len(hex_str), "After: ", len(a2b_hex(hex_str))
 
     text = "Pre Master: -1875847051========="
     e = aes_encrypt.encrypt(text)
@@ -150,4 +273,15 @@ if __name__ == '__main__':
     d1 = aes_encrypt.decrypt(raw)
     print "Check: ", d1
 
-    
+    # Test of Extracting key from DER Cert 
+    print "\n\n[Test Der]"
+    key = prvkey_from_pem("cert.pem")
+    org = rsa_encryption("Test", key) 
+    print b2a_hex(org)
+   
+    prvkey = prvkey_from_pem("crypt_key.pem")
+    rsa_text ="1D17BB26D3510EABF2B06C9020895B587DA4EF1ED8F966FF8BBB7E3EB6F85F593D65E97DAA0FE80049F5B205ED2E881C27569BFA525E78EBE825ECDC338BDBA0EF0CBED3F8A38C5C001FA148E453EDBECF9C44CB350815DDAFDA8B252B53A1304F55FD0923EE8B9BF0F464C0B850598D887BD04D3A90F641FBCF45A7E7E7678B"
+    encode = base64.b64encode(a2b_hex(rsa_text)) 
+    print "[Base64] ", encode
+    decode = rsa_decryption(encode, prvkey)
+    print "[Test] X509 pem decode", decode, '\n'
